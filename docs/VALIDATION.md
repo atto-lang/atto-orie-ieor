@@ -27,13 +27,13 @@ types and module imports at the level these files require.
 Do not mark these fixtures as passed until that is changed and actually
 executed. Do not substitute a mock interpreter or a host-language port.
 
-## Nine Oreslang reference guest test cases
+## Twelve Oreslang reference guest test cases
 
 | Package | Cases |
 | --- | --- |
 | orie-numerics | `matrix_contract.ores`, `linear_solve_contract.ores` |
-| orie-opt | `optimization_contract.ores`, `simplex_contract.ores`, `simplex_status_contract.ores`, `branch_and_bound_contract.ores` |
-| orie-sim | `simulation_contract.ores`, `queueing_contract.ores` |
+| orie-opt | `optimization_contract.ores`, `simplex_contract.ores`, `simplex_status_contract.ores`, `simplex_degenerate_contract.ores`, `branch_and_bound_contract.ores`, `branch_and_bound_enumeration.ores` |
+| orie-sim | `simulation_contract.ores`, `queueing_contract.ores`, `queueing_negative_contract.ores` |
 | orie-plan | `planning_contract.ores` |
 
 Expected exact stdout markers:
@@ -73,3 +73,7 @@ export approval is present, and the native LLVM compiler's explicit export
 allowlist is empty. Therefore no cross-org source mirror is performed as part
 of this PR. Do not export either private repository merely to work around
 zero-step runs. Target discovery, CI and security approval are separate gates.
+
+Additional native Oreslang fixture markers: `PASS:orie-bnb-enumeration`,
+`PASS:orie-simplex-degenerate`, `PASS:orie-sim-negative`.
+These are guest execution targets, not successful runtime receipts.

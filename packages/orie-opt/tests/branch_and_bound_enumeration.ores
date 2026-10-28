@@ -1,0 +1,42 @@
+// Independent exhaustive tiny packing oracle in native Oreslang.
+// Expected: PASS:orie-bnb-enumeration
+import module branch_and_bound from "../src/branch_and_bound";
+pub routine main(): void {
+  let mut Array<f64> costs = new Array<f64>();
+  costs.add(6.0); costs.add(5.0); costs.add(3.0);
+  let mut Array<f64> weights = new Array<f64>();
+  weights.add(4.0); weights.add(3.0); weights.add(2.0);
+  let mut Array<f64> rhs = new Array<f64>();
+  rhs.add(0.0);
+  for (let capacity = 0; capacity <= 7; capacity++) {
+    rhs.set(0, capacity);
+    let int enumerated = 0;
+    for (let bits = 0; bits < 8; bits++) {
+      val int x0 = bits % 2;
+      val int x1 = (bits / 2) % 2;
+      val int x2 = (bits / 4) % 2;
+      val int weight = 4 * x0 + 3 * x1 + 2 * x2;
+      val int objective = 6 * x0 + 5 * x1 + 3 * x2;
+      if weight <= capacity && objective > enumerated; then
+        enumerated = objective;
+      fi
+    }
+    val result = branch_and_bound.solve_binary(
+      rt borrow costs, rt borrow weights, rt borrow rhs, 1, 128);
+    if result.is_err(); then
+      stdio.stdout.println("FAIL:bnb:admission"); return;
+    fi
+    val answer = result.unwrap();
+    if answer.status != "optimal" ||
+       answer.objective < enumerated - 0.000001 ||
+       answer.objective > enumerated + 0.000001; then
+      stdio.stdout.println("FAIL:bnb:enumeration"); return;
+    fi
+    val int weight = 4 * answer.values.get(0) +
+        3 * answer.values.get(1) + 2 * answer.values.get(2);
+    if weight > capacity; then
+      stdio.stdout.println("FAIL:bnb:feasibility"); return;
+    fi
+  }
+  stdio.stdout.println("PASS:orie-bnb-enumeration");
+}

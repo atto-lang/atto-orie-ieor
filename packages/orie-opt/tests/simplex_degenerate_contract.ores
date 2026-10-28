@@ -1,0 +1,23 @@
+// Degenerate objective with binding zero constraint.
+// Expected: PASS:orie-simplex-degenerate
+import module simplex from "../src/simplex";
+pub routine main(): void {
+  let mut Array<f64> c = new Array<f64>();
+  c.add(1.0); c.add(1.0);
+  let mut Array<f64> a = new Array<f64>();
+  a.add(1.0); a.add(0.0);
+  a.add(0.0); a.add(1.0);
+  a.add(1.0); a.add(1.0);
+  let mut Array<f64> b = new Array<f64>();
+  b.add(0.0); b.add(2.0); b.add(2.0);
+  val r = simplex.solve_max_leq(
+    rt borrow c, rt borrow a, rt borrow b, 3, 100);
+  if r.is_err(); then stdio.stdout.println("FAIL:admission"); return; fi
+  val s = r.unwrap();
+  if s.status != "optimal" ||
+     s.objective < 1.999999 || s.objective > 2.000001 ||
+     s.values.get(0) > 0.000001 || s.values.get(1) < 1.999999; then
+    stdio.stdout.println("FAIL:degenerate"); return;
+  fi
+  stdio.stdout.println("PASS:orie-simplex-degenerate");
+}

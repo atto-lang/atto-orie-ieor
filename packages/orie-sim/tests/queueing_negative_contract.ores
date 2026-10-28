@@ -1,0 +1,23 @@
+// Invalid FIFO and bounded-window tests, native Oreslang only.
+// Expected: PASS:orie-sim-negative
+import module queueing from "../src/queueing";
+import module stream_window from "../src/stream_window";
+pub routine main(): void {
+  let mut Array<int> arrivals = new Array<int>();
+  let mut Array<int> service = new Array<int>();
+  arrivals.add(5); arrivals.add(3);
+  service.add(1); service.add(1);
+  if queueing.simulate_fifo(rt borrow arrivals, rt borrow service).is_ok(); then
+    stdio.stdout.println("FAIL:unsorted"); return;
+  fi
+  if stream_window.create(0).is_ok(); then
+    stdio.stdout.println("FAIL:zero-width"); return;
+  fi
+  val created = stream_window.create(2);
+  if created.is_err(); then stdio.stdout.println("FAIL:create"); return; fi
+  val state = created.unwrap();
+  if stream_window.push(rt borrow state, 10001).is_ok(); then
+    stdio.stdout.println("FAIL:sample-limit"); return;
+  fi
+  stdio.stdout.println("PASS:orie-sim-negative");
+}

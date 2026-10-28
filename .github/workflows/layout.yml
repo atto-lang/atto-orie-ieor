@@ -33,8 +33,11 @@ jobs:
             packages/orie-plan/tests/planning_contract.ores; do
             test -f "$fixture"
           done
+          test -f packages/orie-opt/tests/branch_and_bound_enumeration.ores
+          test -f packages/orie-opt/tests/simplex_degenerate_contract.ores
+          test -f packages/orie-sim/tests/queueing_negative_contract.ores
           test "$(find packages -name '.ores.pkg.toml' -type f | wc -l)" -eq 4
-          test "$(find packages -name '*.ores' -type f | wc -l)" -eq 23
+          test "$(find packages -name '*.ores' -type f | wc -l)" -eq 26
           if find . -type f \( -name '*.java' -o -name '*.class' \
              -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
              -o -name '*.ipynb' \) | grep -q .; then
