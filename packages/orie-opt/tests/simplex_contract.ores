@@ -35,6 +35,10 @@ pub routine main(): void {
   fi
   let mut Array<f64> bad_b = new Array<f64>();
   bad_b.add(-1.0); bad_b.add(12.0);
+  if lp_model.create_model(rt borrow c, rt borrow a,
+      rt borrow bad_b, 2).is_ok(); then
+    stdio.stdout.println("FAIL:simplex:model-negative-rhs"); return;
+  fi
   if simplex.solve_max_leq(rt borrow c,
       rt borrow a, rt borrow bad_b, 2, 100).is_ok(); then
     stdio.stdout.println("FAIL:simplex:negative-rhs"); return;

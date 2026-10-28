@@ -10,7 +10,7 @@ define module lp_model as
     val Array<f64> upper_bounds;
     val int rows;
 
-    pub constructor(borrow Array<f64> objective,
+    constructor(borrow Array<f64> objective,
                     borrow Array<f64> coefficients,
                     borrow Array<f64> upper_bounds, int rows) {
       let mut Array<f64> copied_cost = new Array<f64>();
@@ -32,4 +32,34 @@ define module lp_model as
           self.rows, pivot_limit);
     }
   end
+
+  // Validate BEFORE cloning caller arrays. This is the only public model
+  // construction API. Avoid unbounded allocations on malformed user input.
+  pub fnc create_model(borrow Array<f64> objective,
+                       borrow Array<f64> coefficients,
+                       borrow Array<f64> upper_bounds, int rows):
+                       Result<Model, String> {
+    val int n = objective.size;
+    if n <= 0 || n > 16 || rows <= 0 || rows > 16 ||
+       upper_bounds.size != rows || coefficients.size != n * rows; then
+      return Err("lp_model: invalid model dimensions");
+    fi
+    for (const c of objective) {
+      if !(c >= -100.0 && c <= 100.0); then
+        return Err("lp_model: invalid objective coefficient");
+      fi
+    }
+    for (const a of coefficients) {
+      if !(a >= -100.0 && a <= 100.0); then
+        return Err("lp_model: invalid matrix coefficient");
+      fi
+    }
+    for (const rhs of upper_bounds) {
+      if !(rhs >= 0.0 && rhs <= 1000.0); then
+        return Err("lp_model: nonnegative bounded RHS required");
+      fi
+    }
+    return Ok(new Model(rt borrow objective,
+        rt borrow coefficients, rt borrow upper_bounds, rows));
+  }
 end

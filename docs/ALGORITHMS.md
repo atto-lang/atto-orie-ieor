@@ -67,8 +67,9 @@ guest runtime outputs. All negative/error tests remain unexecuted.
 
 ## Safety hardening (2026-10-28)
 
-The userland LP `Model` constructor now snapshots its three input arrays,
-with no public raw-buffer getters. The simplex guest regression mutates the
+The userland LP `create_model` factory checks bounds and shapes before
+allocating the snapshot. Its `Model` constructor and raw arrays are private;
+input buffers are deep-copied instead of retained as mutable caller aliases. The simplex guest regression mutates the
 caller's original arrays after model construction and expects unchanged
 solver behavior. Branch-and-bound branches on every strictly fractional
 relaxation value instead of rounding near-integers into an unsupported proof.
