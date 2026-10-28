@@ -65,7 +65,9 @@ permissions; they are not a mandatory runtime dependency.
 
 Compiler support for `define module`, manifest-root discovery, relative
 multi-file import linking and ownership-safe Array borrowing must be proven.
-Java/GraalVM acceptance is only a first gate: LLVM, WASM, .NET and Forge must
-execute the same oracles on exact pinned compiler heads or reject explicitly.
+The first supported execution gate is a native LLVM Oreslang compiler,
+followed by genuine WASM32, .NET Native AOT, and Forge guest execution.
+No host-language implementation or bridge is a substitute for native Oreslang
+source. An unsupported backend must reject explicitly.
 No private source may be mirrored to a foreign CI organization without
 independent export authorization. See [validation](VALIDATION.md).

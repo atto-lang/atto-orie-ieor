@@ -1,7 +1,8 @@
 # Contributing to ORIE
 
 All domain algorithms belong in ORIE packages, never Oreslang core/stdlib.
-Use Oreslang source for implementation and snake_case function/method names.
+Use native Oreslang source for every algorithm implementation and snake_case
+function/method names. Java and foreign-language wrappers are prohibited.
 Use source modules, keep module scope flat, and do not introduce cross-package
 relative imports that bypass package identity.
 

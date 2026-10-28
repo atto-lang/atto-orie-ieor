@@ -126,9 +126,7 @@ define module branch_and_bound as
         return Err("branch_and_bound: LP relaxation failed admission");
       fi
       val solution = relaxation_result.unwrap();
-      if solution.status == "infeasible_node"; then
-        // This node cannot improve the incumbent.
-      else
+      if solution.status != "infeasible_node"; then
         if solution.status != "optimal"; then
           return Err("branch_and_bound: LP relaxation not certified optimal");
         fi
