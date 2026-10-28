@@ -79,3 +79,17 @@ returns an explicit error; it may never drop that node and later claim
 optimality. Strict gap pruning no longer silently discards tiny positive gaps.
 Neither change establishes numerical dual certificates or native runtime
 proof; independent exact rational oracles remain a required acceptance gate.
+
+## Further fail-closed finite-precision hardening
+
+Primal simplex now rejects an ambiguous tiny negative reduced cost rather
+than treating it as the absence of an improving variable. A tiny positive
+pivot in an entering column also yields `numerical_failure` rather than
+a false `unbounded` status. Minimum-ratio ties are based on exact equality
+of the compared binary values; an epsilon-sized difference can no longer
+choose a strictly larger ratio merely to prefer a smaller basis index.
+Strictly negative basic values fail closed, even if their magnitude falls
+within the general tolerance. These are conservative prototype behaviors:
+false numerical failures are acceptable in this bounded reference, false
+certificates of optimality or unboundedness are not. None of the algorithm
+status codes constitutes an independently checked primal/dual certificate.

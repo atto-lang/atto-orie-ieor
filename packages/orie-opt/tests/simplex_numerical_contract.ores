@@ -1,0 +1,32 @@
+// Tiny reduced costs / tiny positive pivots must never masquerade as
+// "optimal" or "unbounded". Expected: PASS:orie-simplex-numerical
+import module simplex from "../src/simplex";
+pub routine main(): void {
+  let mut Array<f64> cost = new Array<f64>();
+  let mut Array<f64> coeff = new Array<f64>();
+  let mut Array<f64> rhs = new Array<f64>();
+  cost.add(0.0000000001);
+  coeff.add(1.0);
+  rhs.add(1.0);
+  val near_zero_cost = simplex.solve_max_leq(rt borrow cost,
+     rt borrow coeff, rt borrow rhs, 1, 10);
+  if near_zero_cost.is_err(); then
+    stdio.stdout.println("FAIL:tiny-cost-admission"); return;
+  fi
+  if near_zero_cost.unwrap().status != "numerical_failure"; then
+    stdio.stdout.println("FAIL:tiny-cost-false-optimal"); return;
+  fi
+
+  cost.set(0, 1.0);
+  coeff.set(0, 0.0000000001);
+  rhs.set(0, 0.0000000001);
+  val near_zero_pivot = simplex.solve_max_leq(rt borrow cost,
+     rt borrow coeff, rt borrow rhs, 1, 10);
+  if near_zero_pivot.is_err(); then
+    stdio.stdout.println("FAIL:tiny-pivot-admission"); return;
+  fi
+  if near_zero_pivot.unwrap().status != "numerical_failure"; then
+    stdio.stdout.println("FAIL:tiny-pivot-false-unbounded"); return;
+  fi
+  stdio.stdout.println("PASS:orie-simplex-numerical");
+}

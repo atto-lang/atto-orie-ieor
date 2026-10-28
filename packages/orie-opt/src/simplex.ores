@@ -84,9 +84,16 @@ define module simplex as
       // Bland: first negative reduced cost, not most negative.
       let int enter = -1;
       for (let j = 0; j < n + m; j++) {
-        if enter == -1 && t.get(obj_offset + j) < -eps; then
-          enter = j;
+        val f64 reduced = t.get(obj_offset + j);
+        if !admitted(reduced, 1000000000000.0); then
+          return Ok(non_optimal("numerical_failure", n, iteration));
         fi
+        // A tiny negative reduced cost is still a possible improvement:
+        // fail closed instead of falsely certifying an optimum.
+        if reduced < 0.0 && reduced >= -eps; then
+          return Ok(non_optimal("numerical_failure", n, iteration));
+        fi
+        if enter == -1 && reduced < -eps; then enter = j; fi
       }
       if enter == -1; then
         let mut Array<f64> values = new Array<f64>();
@@ -95,11 +102,10 @@ define module simplex as
           val int basic = basis.get(row);
           if basic < n; then
             val f64 primal = t.get(row * columns + last_col);
-            if primal < -eps || !admitted(primal, 1000000000000.0); then
+            if primal < 0.0 || !admitted(primal, 1000000000000.0); then
               return Ok(non_optimal("numerical_failure", n, iteration));
             fi
-            if primal < 0.0; then values.set(basic, 0.0);
-            else values.set(basic, primal); fi
+            values.set(basic, primal);
           fi
         }
         // Validate returned primal residuals, independently of tableau RHS.
@@ -129,14 +135,22 @@ define module simplex as
       let f64 best_ratio = 1000000000000.0;
       for (let row = 0; row < m; row++) {
         val f64 coef = t.get(row * columns + enter);
+        if !admitted(coef, 1000000000000.0); then
+          return Ok(non_optimal("numerical_failure", n, iteration));
+        fi
+        if coef > 0.0 && coef <= eps; then
+          // A tiny positive pivot may bound an apparently unbounded ray.
+          return Ok(non_optimal("numerical_failure", n, iteration));
+        fi
         if coef > eps; then
           val f64 ratio = t.get(row * columns + last_col) / coef;
-          if !admitted(ratio, 1000000000000.0) || ratio < -eps; then
+          if !admitted(ratio, 1000000000000.0) || ratio < 0.0; then
             return Ok(non_optimal("numerical_failure", n, iteration));
           fi
-          if leave == -1 || ratio < best_ratio - eps ||
-             (magnitude(ratio - best_ratio) <= eps &&
-              basis.get(row) < basis.get(leave)); then
+          // Only exact equal ratios are ties; never choose a provably
+          // larger ratio due to a tolerance window.
+          if leave == -1 || ratio < best_ratio ||
+             (ratio == best_ratio && basis.get(row) < basis.get(leave)); then
             best_ratio = ratio;
             leave = row;
           fi

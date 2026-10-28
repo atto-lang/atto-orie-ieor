@@ -27,12 +27,12 @@ types and module imports at the level these files require.
 Do not mark these fixtures as passed until that is changed and actually
 executed. Do not substitute a mock interpreter or a host-language port.
 
-## Twelve Oreslang reference guest test cases
+## Thirteen Oreslang reference guest test cases
 
 | Package | Cases |
 | --- | --- |
 | orie-numerics | `matrix_contract.ores`, `linear_solve_contract.ores` |
-| orie-opt | `optimization_contract.ores`, `simplex_contract.ores`, `simplex_status_contract.ores`, `simplex_degenerate_contract.ores`, `branch_and_bound_contract.ores`, `branch_and_bound_enumeration.ores` |
+| orie-opt | `optimization_contract.ores`, `simplex_contract.ores`, `simplex_status_contract.ores`, `simplex_degenerate_contract.ores`, `simplex_numerical_contract.ores`, `branch_and_bound_contract.ores`, `branch_and_bound_enumeration.ores` |
 | orie-sim | `simulation_contract.ores`, `queueing_contract.ores`, `queueing_negative_contract.ores` |
 | orie-plan | `planning_contract.ores` |
 
@@ -75,5 +75,23 @@ of this PR. Do not export either private repository merely to work around
 zero-step runs. Target discovery, CI and security approval are separate gates.
 
 Additional native Oreslang fixture markers: `PASS:orie-bnb-enumeration`,
-`PASS:orie-simplex-degenerate`, `PASS:orie-sim-negative`.
+`PASS:orie-simplex-degenerate`, `PASS:orie-simplex-numerical`,
+`PASS:orie-sim-negative`.
 These are guest execution targets, not successful runtime receipts.
+
+## Numerical false-certificate regression (2026-10-28)
+
+A previously admitted LP with an objective coefficient of 1e-10 and a
+unit upper bound could return `optimal` at objective zero because the
+negative reduced cost was smaller in magnitude than the fixed epsilon.
+Likewise, a 1e-10 positive pivot could be overlooked and the bounded
+program incorrectly classified as `unbounded`. Native guest fixture
+`simplex_numerical_contract.ores` demands `numerical_failure` in both
+cases rather than either false certificate. This does not prove robust
+finite-precision simplex, nor certificate support for general LPs.
+
+The model guest fixture also now calls the public `create_model` factory
+instead of the private constructor, and checks model ownership after
+mutating its original caller-owned buffers. All thirteen guest cases
+remain **unexecuted** until an authorized native Oreslang toolchain can
+compile and run them.

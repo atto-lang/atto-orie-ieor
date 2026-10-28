@@ -10,7 +10,12 @@ pub routine main(): void {
   a.add(1.0); a.add(3.0);
   let mut Array<f64> b = new Array<f64>();
   b.add(10.0); b.add(12.0);
-  val model = new lp_model.Model(rt borrow c, rt borrow a, rt borrow b, 2);
+  val admission = lp_model.create_model(rt borrow c, rt borrow a,
+                                          rt borrow b, 2);
+  if admission.is_err(); then
+    stdio.stdout.println("FAIL:simplex:model-admission"); return;
+  fi
+  val model = admission.unwrap();
   val result = model.solve(100);
   if result.is_err(); then stdio.stdout.println("FAIL:simplex:admission"); return; fi
   val solution = result.unwrap();
