@@ -180,7 +180,9 @@ define module branch_and_bound as
             for (let row = 0; row < m; row++) {
               let f64 lhs = 0.0;
               for (let j = 0; j < n; j++) {
-                lhs = lhs + a.get(row * n + j) * candidate.get(j);
+                if candidate.get(j) == 1; then
+                  lhs = lhs + a.get(row * n + j);
+                fi
               }
               if lhs > b.get(row) + 0.00000001; then
                 admissible = false;

@@ -8,6 +8,11 @@ pub routine main(): void {
   weights.add(4.0); weights.add(3.0); weights.add(2.0);
   let mut Array<f64> rhs = new Array<f64>();
   rhs.add(0.0);
+  let mut Array<int> expected_integer = new Array<int>();
+  expected_integer.add(0); expected_integer.add(0);
+  expected_integer.add(3); expected_integer.add(5);
+  expected_integer.add(6); expected_integer.add(8);
+  expected_integer.add(9); expected_integer.add(11);
   for (let capacity = 0; capacity <= 7; capacity++) {
     rhs.set(0, capacity);
     let int enumerated = 0;
@@ -21,6 +26,9 @@ pub routine main(): void {
         enumerated = objective;
       fi
     }
+    if enumerated != expected_integer.get(capacity); then
+      stdio.stdout.println("FAIL:bnb:enumeration-reference"); return;
+    fi
     val result = branch_and_bound.solve_binary(
       rt borrow costs, rt borrow weights, rt borrow rhs, 1, 128);
     if result.is_err(); then
