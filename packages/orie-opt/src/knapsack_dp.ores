@@ -1,0 +1,29 @@
+// Exact bounded 0/1 knapsack dynamic program, not branch-and-bound.
+// Every item can be selected at most once. O(n*capacity) time and O(capacity) space.
+// Resource limits keep all scores in signed 32-bit range.
+define module knapsack_dp as
+  pub fnc max_value(borrow Array<int> weights, borrow Array<int> values,
+                    int capacity): Result<int, String> {
+    if capacity < 0 || capacity > 256 ||
+       weights.size != values.size || weights.size > 64; then
+      return Err("knapsack: invalid capacity or item count");
+    fi
+    for (let i = 0; i < weights.size; i++) {
+      if weights.get(i) <= 0 || weights.get(i) > 256 ||
+         values.get(i) < 0 || values.get(i) > 10000; then
+        return Err("knapsack: invalid weight or value");
+      fi
+    }
+    let mut Array<int> dp = new Array<int>();
+    for (let c = 0; c <= capacity; c++) { dp.add(0); }
+    for (let i = 0; i < weights.size; i++) {
+      val int weight = weights.get(i);
+      val int value = values.get(i);
+      for (let c = capacity; c >= weight; c--) {
+        val int candidate = dp.get(c - weight) + value;
+        if candidate > dp.get(c); then dp.set(c, candidate); fi
+      }
+    }
+    return Ok(dp.get(capacity));
+  }
+end

@@ -1,0 +1,47 @@
+// Single-owner ordered timestamp calendar. Payload/state ownership and
+// asynchronous actor delivery are intentionally NOT modeled here.
+// Stable insertion: equal timestamps retain their original ordering.
+define module event_calendar as
+  pub fnc insert_sorted(borrow Array<int> timestamps,
+                        int timestamp): Result<Array<int>, String> {
+    if timestamp < 0 || timestamp > 1000000 ||
+       timestamps.size >= 1024; then
+      return Err("calendar: time or queue budget invalid");
+    fi
+    let int previous = -1;
+    for (const t of timestamps) {
+      if t < previous || t < 0 || t > 1000000; then
+        return Err("calendar: input not sorted or bounded");
+      fi
+      previous = t;
+    }
+    let mut Array<int> result = new Array<int>();
+    let bool inserted = false;
+    for (const t of timestamps) {
+      if !inserted && timestamp < t; then
+        result.add(timestamp);
+        inserted = true;
+      fi
+      result.add(t);
+    }
+    if !inserted; then result.add(timestamp); fi
+    return Ok(result);
+  }
+
+  pub fnc count_due(borrow Array<int> timestamps, int now):
+                   Result<int, String> {
+    if now < 0 || now > 1000000 || timestamps.size > 1024; then
+      return Err("calendar: invalid time or size");
+    fi
+    let int count = 0;
+    let int previous = -1;
+    for (const t of timestamps) {
+      if t < previous || t < 0 || t > 1000000; then
+        return Err("calendar: input not sorted or bounded");
+      fi
+      if t <= now; then count = count + 1; fi
+      previous = t;
+    }
+    return Ok(count);
+  }
+end

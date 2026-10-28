@@ -1,0 +1,56 @@
+// Deterministic earliest-finish schedule on a precedence DAG.
+// Unlimited resources: this is NOT job-shop/resource-constrained scheduling.
+// Kahn's algorithm rejects cycles. Smallest ready vertex wins ties.
+define module precedence as
+  pub fnc makespan(borrow Array<int> durations,
+                   borrow Array<int> edges_from,
+                   borrow Array<int> edges_to): Result<int, String> {
+    val int n = durations.size;
+    if n <= 0 || n > 64 || edges_from.size != edges_to.size ||
+       edges_from.size > 512; then
+      return Err("precedence: invalid graph dimensions");
+    fi
+    let mut Array<int> indegree = new Array<int>();
+    let mut Array<int> earliest = new Array<int>();
+    let mut Array<int> processed = new Array<int>();
+    for (let i = 0; i < n; i++) {
+      if durations.get(i) < 0 || durations.get(i) > 10000; then
+        return Err("precedence: invalid duration");
+      fi
+      indegree.add(0);
+      earliest.add(0);
+      processed.add(0);
+    }
+    for (let e = 0; e < edges_from.size; e++) {
+      val int u = edges_from.get(e);
+      val int v = edges_to.get(e);
+      if u < 0 || u >= n || v < 0 || v >= n; then
+        return Err("precedence: edge out of range");
+      fi
+      indegree.set(v, indegree.get(v) + 1);
+    }
+    let int makespan = 0;
+    for (let turn = 0; turn < n; turn++) {
+      let int chosen = -1;
+      for (let i = 0; i < n; i++) {
+        if chosen == -1 && processed.get(i) == 0 && indegree.get(i) == 0; then
+          chosen = i;
+        fi
+      }
+      if chosen == -1; then return Err("precedence: directed cycle"); fi
+      processed.set(chosen, 1);
+      val int completed_at = earliest.get(chosen) + durations.get(chosen);
+      if completed_at > makespan; then makespan = completed_at; fi
+      for (let e = 0; e < edges_from.size; e++) {
+        if edges_from.get(e) == chosen; then
+          val int v = edges_to.get(e);
+          if completed_at > earliest.get(v); then
+            earliest.set(v, completed_at);
+          fi
+          indegree.set(v, indegree.get(v) - 1);
+        fi
+      }
+    }
+    return Ok(makespan);
+  }
+end

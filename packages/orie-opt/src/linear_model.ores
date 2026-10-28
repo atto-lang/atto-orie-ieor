@@ -1,0 +1,32 @@
+// Narrow integer linear-feasibility building block.
+// This is NOT simplex, MILP, or a generic floating-point modeling engine.
+define module linear_model as
+  pub define class Constraint2 as
+    pub val int coefficient_x;
+    pub val int coefficient_y;
+    pub val int upper_bound;
+    pub constructor(int coefficient_x, int coefficient_y, int upper_bound) {
+      self.coefficient_x = coefficient_x;
+      self.coefficient_y = coefficient_y;
+      self.upper_bound = upper_bound;
+    }
+  end
+
+  pub fnc feasible_2d(borrow Array<Constraint2> constraints,
+                      int x, int y): Result<bool, String> {
+    if x < 0 || y < 0 || x > 1000 || y > 1000 ||
+       constraints.size > 128; then
+      return Err("linear_model: decision or constraint budget invalid");
+    fi
+    for (const bound of constraints) {
+      if bound.coefficient_x < -1000 || bound.coefficient_x > 1000 ||
+         bound.coefficient_y < -1000 || bound.coefficient_y > 1000 ||
+         bound.upper_bound < -2000000 || bound.upper_bound > 2000000; then
+        return Err("linear_model: coefficient or rhs out of range");
+      fi
+      val int lhs = bound.coefficient_x * x + bound.coefficient_y * y;
+      if lhs > bound.upper_bound; then return Ok(false); fi
+    }
+    return Ok(true);
+  }
+end

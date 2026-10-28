@@ -1,0 +1,28 @@
+// Expected: PASS:orie-sim
+import module event_calendar from "../src/event_calendar";
+import module window_stats from "../src/window_stats";
+
+pub routine main(): void {
+  let mut Array<int> events = new Array<int>();
+  events.add(1); events.add(4); events.add(4);
+  val inserted = event_calendar.insert_sorted(rt borrow events, 3);
+  if inserted.is_err(); then stdio.stdout.println("FAIL:sim:insert"); return; fi
+  val calendar = inserted.unwrap();
+  if calendar.size != 4 || calendar.get(0) != 1 ||
+     calendar.get(1) != 3 || calendar.get(2) != 4; then
+    stdio.stdout.println("FAIL:sim:order"); return;
+  fi
+  val due = event_calendar.count_due(rt borrow calendar, 3);
+  if due.is_err(); then stdio.stdout.println("FAIL:sim:due"); return; fi
+  if due.unwrap() != 2; then stdio.stdout.println("FAIL:sim:count"); return; fi
+  let mut Array<int> samples = new Array<int>();
+  samples.add(1); samples.add(2); samples.add(3); samples.add(4);
+  val sums = window_stats.rolling_sum(rt borrow samples, 2);
+  if sums.is_err(); then stdio.stdout.println("FAIL:sim:window"); return; fi
+  val windowed = sums.unwrap();
+  if windowed.size != 3 || windowed.get(0) != 3 ||
+     windowed.get(1) != 5 || windowed.get(2) != 7; then
+    stdio.stdout.println("FAIL:sim:oracle"); return;
+  fi
+  stdio.stdout.println("PASS:orie-sim");
+}

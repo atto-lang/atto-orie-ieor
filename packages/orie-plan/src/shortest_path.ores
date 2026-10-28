@@ -1,0 +1,41 @@
+// Bellman-Ford reference for directed graphs with NONNEGATIVE weights.
+// Bounds avoid integer overflow; -1 means unreachable in returned vector.
+// Negative edges and invalid endpoints fail closed.
+define module shortest_path as
+  pub fnc distances(int vertices, int source,
+                    borrow Array<int> edge_from, borrow Array<int> edge_to,
+                    borrow Array<int> weights): Result<Array<int>, String> {
+    if vertices <= 0 || vertices > 64 ||
+       source < 0 || source >= vertices ||
+       edge_from.size != edge_to.size || edge_to.size != weights.size ||
+       weights.size > 512; then
+      return Err("shortest_path: invalid graph dimensions");
+    fi
+    for (let e = 0; e < weights.size; e++) {
+      if edge_from.get(e) < 0 || edge_from.get(e) >= vertices ||
+         edge_to.get(e) < 0 || edge_to.get(e) >= vertices ||
+         weights.get(e) < 0 || weights.get(e) > 10000; then
+        return Err("shortest_path: invalid edge");
+      fi
+    }
+    let mut Array<int> distance = new Array<int>();
+    for (let v = 0; v < vertices; v++) { distance.add(1000000000); }
+    distance.set(source, 0);
+    for (let pass = 1; pass < vertices; pass++) {
+      for (let e = 0; e < weights.size; e++) {
+        val int u = edge_from.get(e);
+        val int v = edge_to.get(e);
+        if distance.get(u) != 1000000000; then
+          val int candidate = distance.get(u) + weights.get(e);
+          if candidate < distance.get(v); then distance.set(v, candidate); fi
+        fi
+      }
+    }
+    let mut Array<int> result = new Array<int>();
+    for (const d of distance) {
+      if d == 1000000000; then result.add(-1);
+      else result.add(d); fi
+    }
+    return Ok(result);
+  }
+end

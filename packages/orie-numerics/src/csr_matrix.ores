@@ -1,0 +1,41 @@
+// Deterministic CSR matrix-vector product reference.
+// Repeated column indices are summed rather than normalized.
+// Bounded to avoid integer overflow and uncontrolled allocation.
+define module csr_matrix as
+  pub fnc matvec(int rows, int cols,
+                 borrow Array<int> row_ptr, borrow Array<int> columns,
+                 borrow Array<int> values, borrow Array<int> x):
+                 Result<Array<int>, String> {
+    if rows <= 0 || rows > 64 || cols <= 0 || cols > 64 ||
+       values.size > 512 || values.size != columns.size ||
+       x.size != cols || row_ptr.size != rows + 1; then
+      return Err("csr: shape or resource budget invalid");
+    fi
+    if row_ptr.get(0) != 0 || row_ptr.get(rows) != values.size; then
+      return Err("csr: invalid first/last row pointer");
+    fi
+    for (const v of x) {
+      if v < -100 || v > 100; then return Err("csr: vector value out of range"); fi
+    }
+    for (let i = 0; i < values.size; i++) {
+      if columns.get(i) < 0 || columns.get(i) >= cols ||
+         values.get(i) < -100 || values.get(i) > 100; then
+        return Err("csr: invalid column or matrix value");
+      fi
+    }
+    let mut Array<int> out = new Array<int>();
+    for (let r = 0; r < rows; r++) {
+      val int begin = row_ptr.get(r);
+      val int finish = row_ptr.get(r + 1);
+      if begin < 0 || finish < begin || finish > values.size; then
+        return Err("csr: non-monotonic row pointers");
+      fi
+      let int sum = 0;
+      for (let k = begin; k < finish; k++) {
+        sum = sum + values.get(k) * x.get(columns.get(k));
+      }
+      out.add(sum);
+    }
+    return Ok(out);
+  }
+end

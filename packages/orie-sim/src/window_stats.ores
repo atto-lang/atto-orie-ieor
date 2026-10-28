@@ -1,0 +1,23 @@
+// Pure batch/reference windows. Does not claim asynchronous backpressure,
+// real streaming subscriptions, or Channel<T> lifecycle correctness.
+define module window_stats as
+  pub fnc rolling_sum(borrow Array<int> samples, int width):
+                      Result<Array<int>, String> {
+    if width <= 0 || width > 256 || samples.size > 4096 ||
+       width > samples.size; then
+      return Err("window: width or sample count invalid");
+    fi
+    let mut Array<int> out = new Array<int>();
+    let int sum = 0;
+    for (let i = 0; i < samples.size; i++) {
+      val int value = samples.get(i);
+      if value < -10000 || value > 10000; then
+        return Err("window: sample out of range");
+      fi
+      sum = sum + value;
+      if i >= width; then sum = sum - samples.get(i - width); fi
+      if i + 1 >= width; then out.add(sum); fi
+    }
+    return Ok(out);
+  }
+end

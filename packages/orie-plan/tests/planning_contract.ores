@@ -1,0 +1,34 @@
+// Expected: PASS:orie-plan
+import module shortest_path from "../src/shortest_path";
+import module precedence from "../src/precedence";
+
+pub routine main(): void {
+  let mut Array<int> origins = new Array<int>();
+  let mut Array<int> destinations = new Array<int>();
+  let mut Array<int> weights = new Array<int>();
+  origins.add(0); destinations.add(1); weights.add(2);
+  origins.add(1); destinations.add(2); weights.add(5);
+  origins.add(0); destinations.add(2); weights.add(10);
+  origins.add(2); destinations.add(3); weights.add(1);
+  val distances = shortest_path.distances(4, 0, rt borrow origins,
+                    rt borrow destinations, rt borrow weights);
+  if distances.is_err(); then stdio.stdout.println("FAIL:plan:graph"); return; fi
+  val d = distances.unwrap();
+  if d.get(0) != 0 || d.get(1) != 2 || d.get(2) != 7 || d.get(3) != 8; then
+    stdio.stdout.println("FAIL:plan:distances"); return;
+  fi
+  let mut Array<int> durations = new Array<int>();
+  let mut Array<int> from = new Array<int>();
+  let mut Array<int> to = new Array<int>();
+  durations.add(2); durations.add(3); durations.add(4);
+  from.add(0); to.add(2);
+  from.add(1); to.add(2);
+  val length = precedence.makespan(rt borrow durations, rt borrow from, rt borrow to);
+  if length.is_err(); then stdio.stdout.println("FAIL:plan:dag"); return; fi
+  if length.unwrap() != 7; then stdio.stdout.println("FAIL:plan:makespan"); return; fi
+  from.add(2); to.add(1);
+  if precedence.makespan(rt borrow durations, rt borrow from, rt borrow to).is_ok(); then
+    stdio.stdout.println("FAIL:plan:cycle"); return;
+  fi
+  stdio.stdout.println("PASS:orie-plan");
+}

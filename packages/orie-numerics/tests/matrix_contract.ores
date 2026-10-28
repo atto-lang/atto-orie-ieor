@@ -1,0 +1,35 @@
+// Expected: PASS:orie-numerics
+// Requires real Oreslang guest compilation and execution to certify.
+import module dense_matrix from "../src/dense_matrix";
+import module csr_matrix from "../src/csr_matrix";
+
+pub routine main(): void {
+  let mut Array<int> a = new Array<int>();
+  let mut Array<int> b = new Array<int>();
+  a.add(1); a.add(2); a.add(3); a.add(4);
+  b.add(5); b.add(6); b.add(7); b.add(8);
+  val product = dense_matrix.multiply(rt borrow a, rt borrow b, 2, 2, 2);
+  if product.is_err(); then stdio.stdout.println("FAIL:numerics:multiply"); return; fi
+  val out = product.unwrap();
+  if out.get(0) != 19 || out.get(1) != 22 ||
+     out.get(2) != 43 || out.get(3) != 50; then
+    stdio.stdout.println("FAIL:numerics:output"); return;
+  fi
+  val malformed = dense_matrix.multiply(rt borrow a, rt borrow b, 2, 3, 2);
+  if malformed.is_ok(); then stdio.stdout.println("FAIL:numerics:shape"); return; fi
+  let mut Array<int> row_ptr = new Array<int>();
+  let mut Array<int> cols = new Array<int>();
+  let mut Array<int> vals = new Array<int>();
+  let mut Array<int> x = new Array<int>();
+  row_ptr.add(0); row_ptr.add(1); row_ptr.add(2);
+  cols.add(0); cols.add(1);
+  vals.add(4); vals.add(7);
+  x.add(3); x.add(2);
+  val y = csr_matrix.matvec(2, 2, rt borrow row_ptr,
+                            rt borrow cols, rt borrow vals, rt borrow x);
+  if y.is_err(); then stdio.stdout.println("FAIL:numerics:csr"); return; fi
+  if y.unwrap().get(0) != 12; then
+    stdio.stdout.println("FAIL:numerics:csr-value"); return;
+  fi
+  stdio.stdout.println("PASS:orie-numerics");
+}

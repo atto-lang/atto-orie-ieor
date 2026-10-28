@@ -1,0 +1,54 @@
+// Bounded signed-int reference kernels, not a floating-point BLAS.
+// Both inputs must be immutable while borrowed. No implicit f64 coercion.
+// Bound: dimensions <=16, each element between -1000 and 1000;
+// each output dot product is in [-16_000_000,16_000_000].
+define module dense_matrix as
+  fnc in_range(int value): bool {
+    return value >= -1000 && value <= 1000;
+  }
+
+  pub fnc dot(borrow Array<int> lhs, borrow Array<int> rhs): Result<int, String> {
+    if lhs.size != rhs.size || lhs.size > 16; then
+      return Err("dot: unequal or oversized vectors");
+    fi
+    let int total = 0;
+    for (let i = 0; i < lhs.size; i++) {
+      val int a = lhs.get(i);
+      val int b = rhs.get(i);
+      if !in_range(a) || !in_range(b); then
+        return Err("dot: element outside bounded integer domain");
+      fi
+      total = total + a * b;
+    }
+    return Ok(total);
+  }
+
+  // Row-major A (rows x inner), B (inner x cols).
+  pub fnc multiply(borrow Array<int> a, borrow Array<int> b,
+                   int rows, int inner, int cols): Result<Array<int>, String> {
+    if rows <= 0 || inner <= 0 || cols <= 0 ||
+       rows > 16 || inner > 16 || cols > 16; then
+      return Err("multiply: dimensions must be 1..16");
+    fi
+    if a.size != rows * inner || b.size != inner * cols; then
+      return Err("multiply: shape mismatch");
+    fi
+    for (const v of a) {
+      if !in_range(v); then return Err("multiply: A value out of range"); fi
+    }
+    for (const v of b) {
+      if !in_range(v); then return Err("multiply: B value out of range"); fi
+    }
+    let mut Array<int> out = new Array<int>();
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        let int sum = 0;
+        for (let k = 0; k < inner; k++) {
+          sum = sum + a.get(row * inner + k) * b.get(k * cols + col);
+        }
+        out.add(sum);
+      }
+    }
+    return Ok(out);
+  }
+end

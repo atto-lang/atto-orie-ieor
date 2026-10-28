@@ -1,0 +1,29 @@
+// Expected: PASS:orie-opt
+import module knapsack_dp from "../src/knapsack_dp";
+import module linear_model from "../src/linear_model";
+
+pub routine main(): void {
+  let mut Array<int> weights = new Array<int>();
+  let mut Array<int> values = new Array<int>();
+  weights.add(2); weights.add(3); weights.add(4);
+  values.add(4); values.add(5); values.add(6);
+  val best = knapsack_dp.max_value(rt borrow weights, rt borrow values, 5);
+  if best.is_err(); then stdio.stdout.println("FAIL:opt:solve"); return; fi
+  if best.unwrap() != 9; then stdio.stdout.println("FAIL:opt:oracle"); return; fi
+  if knapsack_dp.max_value(rt borrow weights, rt borrow values, -1).is_ok(); then
+    stdio.stdout.println("FAIL:opt:negative-budget"); return;
+  fi
+  let mut Array<linear_model.Constraint2> constraints =
+    new Array<linear_model.Constraint2>();
+  constraints.add(new linear_model.Constraint2(2, 1, 10));
+  constraints.add(new linear_model.Constraint2(1, 3, 12));
+  val feasible = linear_model.feasible_2d(rt borrow constraints, 2, 3);
+  val infeasible = linear_model.feasible_2d(rt borrow constraints, 5, 5);
+  if feasible.is_err() || infeasible.is_err(); then
+    stdio.stdout.println("FAIL:opt:model"); return;
+  fi
+  if !feasible.unwrap() || infeasible.unwrap(); then
+    stdio.stdout.println("FAIL:opt:feasibility"); return;
+  fi
+  stdio.stdout.println("PASS:orie-opt");
+}
