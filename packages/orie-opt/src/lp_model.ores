@@ -1,18 +1,27 @@
-// Userland model snapshot: explicit row-major bounded canonical LP.
-// No implicit overloads, units, automatic type coercions or foreign solvers.
+// Native Oreslang canonical LP model. Constructor DEEP-COPIES input scalars
+// into separately owned arrays: no caller alias may mutate a submitted LP.
+// The class never exposes its mutable internal buffers.
 import module simplex from "./simplex";
 
 define module lp_model as
   pub define class Model as
-    pub val Array<f64> objective;
-    pub val Array<f64> coefficients;
-    pub val Array<f64> upper_bounds;
-    pub val int rows;
-    pub constructor(Array<f64> objective, Array<f64> coefficients,
-                    Array<f64> upper_bounds, int rows) {
-      self.objective = objective;
-      self.coefficients = coefficients;
-      self.upper_bounds = upper_bounds;
+    val Array<f64> objective;
+    val Array<f64> coefficients;
+    val Array<f64> upper_bounds;
+    val int rows;
+
+    pub constructor(borrow Array<f64> objective,
+                    borrow Array<f64> coefficients,
+                    borrow Array<f64> upper_bounds, int rows) {
+      let mut Array<f64> copied_cost = new Array<f64>();
+      let mut Array<f64> copied_matrix = new Array<f64>();
+      let mut Array<f64> copied_rhs = new Array<f64>();
+      for (const v of objective) { copied_cost.add(v); }
+      for (const v of coefficients) { copied_matrix.add(v); }
+      for (const v of upper_bounds) { copied_rhs.add(v); }
+      self.objective = copied_cost;
+      self.coefficients = copied_matrix;
+      self.upper_bounds = copied_rhs;
       self.rows = rows;
     }
 

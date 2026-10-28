@@ -64,3 +64,17 @@ not an async `Channel<T>` subscription or a concurrency proof.
 
 These are exact mathematical expectations for test input, not actual
 guest runtime outputs. All negative/error tests remain unexecuted.
+
+## Safety hardening (2026-10-28)
+
+The userland LP `Model` constructor now snapshots its three input arrays,
+with no public raw-buffer getters. The simplex guest regression mutates the
+caller's original arrays after model construction and expects unchanged
+solver behavior. Branch-and-bound branches on every strictly fractional
+relaxation value instead of rounding near-integers into an unsupported proof.
+If an ostensibly integral candidate fails the original constraints, or if a
+fixed-variable subtraction produces an ambiguous negative RHS, the algorithm
+returns an explicit error; it may never drop that node and later claim
+optimality. Strict gap pruning no longer silently discards tiny positive gaps.
+Neither change establishes numerical dual certificates or native runtime
+proof; independent exact rational oracles remain a required acceptance gate.

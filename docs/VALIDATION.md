@@ -56,3 +56,20 @@ numerical tolerance adversarial cases, branch-bound correctness,
 per-case immutable input hashes, exact primal residuals, resource
 limits, cancellation and physical actor retirement. Independent
 reference libraries must not be included in production ORIE sources.
+
+## Security and CI budget status (2026-10-28)
+
+PR #1 source-organization GitHub Actions run 40639158994 had one failed job
+with **zero executed steps**, and its job logs were unavailable. This is not
+solver or layout execution evidence. No GitHub Actions billing API is exposed
+by the connected GitHub interface, so no destination's remaining minutes are
+verified simply by seeing historical successes.
+
+The source repository is private. A different private organization's runner
+cannot check out private compiler source with its local `GITHUB_TOKEN`.
+A token-free Git-tree mirror is technically possible, but would still be
+an **export of private source**. No independently reviewed ORIE source/destination
+export approval is present, and the native LLVM compiler's explicit export
+allowlist is empty. Therefore no cross-org source mirror is performed as part
+of this PR. Do not export either private repository merely to work around
+zero-step runs. Target discovery, CI and security approval are separate gates.

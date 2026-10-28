@@ -60,8 +60,14 @@ define module branch_and_bound as
         for (let j = 0; j < n; j++) { empty.add(0.0); }
         return Ok(new simplex.Solution("infeasible_node", 0.0, empty, 0));
       fi
-      if residual < 0.0; then local_b.add(0.0);
-      else local_b.add(residual); fi
+      if residual < 0.0; then
+        // Do not round near-infeasible constraints into feasible LPs.
+        return Err("branch_and_bound: numerically ambiguous residual");
+      fi
+      if !(residual <= 1000000000000.0); then
+        return Err("branch_and_bound: invalid residual magnitude");
+      fi
+      local_b.add(residual);
     }
     for (let bound = 0; bound < n; bound++) {
       for (let j = 0; j < n; j++) {
@@ -135,7 +141,13 @@ define module branch_and_bound as
           if node.fixed.get(j) == 1; then offset = offset + cost.get(j); fi
         }
         val f64 upper_bound = offset + solution.objective;
-        if upper_bound > best + 0.00000001; then
+        if !(upper_bound >= -1000000000000.0 &&
+             upper_bound <= 1000000000000.0); then
+          return Err("branch_and_bound: invalid LP upper bound");
+        fi
+        // Do not prune positive gaps smaller than a fixed tolerance.
+        // Exact mathematical certification still requires a rational oracle.
+        if upper_bound >= best; then
           let int branch = -1;
           let mut Array<int> candidate = new Array<int>();
           let f64 objective = 0.0;
@@ -149,10 +161,12 @@ define module branch_and_bound as
                 candidate.add(0);
               else
                 val f64 value = solution.values.get(j);
-                if !(value >= -0.000001 && value <= 1.000001); then
+                if !(value >= 0.0 && value <= 1.0); then
                   return Err("branch_and_bound: invalid relaxed binary bound");
                 fi
-                if value > 0.00000001 && value < 0.99999999 &&
+                // Branch on ANY strictly fractional result. Near-integral
+                // values must not silently become a proof of integrality.
+                if value > 0.0 && value < 1.0 &&
                    branch == -1; then branch = j; fi
                 if value >= 0.5; then
                   candidate.add(1);
@@ -172,7 +186,11 @@ define module branch_and_bound as
                 admissible = false;
               fi
             }
-            if admissible && objective > best + 0.00000001; then
+            if !admissible; then
+              // Never discard an ambiguous node and then report optimal.
+              return Err("branch_and_bound: integral candidate failed feasibility");
+            fi
+            if objective > best; then
               best = objective;
               incumbent = candidate;
             fi

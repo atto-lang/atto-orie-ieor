@@ -10,7 +10,7 @@ pub routine main(): void {
   a.add(1.0); a.add(3.0);
   let mut Array<f64> b = new Array<f64>();
   b.add(10.0); b.add(12.0);
-  val model = new lp_model.Model(c, a, b, 2);
+  val model = new lp_model.Model(rt borrow c, rt borrow a, rt borrow b, 2);
   val result = model.solve(100);
   if result.is_err(); then stdio.stdout.println("FAIL:simplex:admission"); return; fi
   val solution = result.unwrap();
@@ -22,10 +22,21 @@ pub routine main(): void {
      solution.values.get(1) > 2.800001; then
     stdio.stdout.println("FAIL:simplex:primal"); return;
   fi
+  // Mutation of original caller-owned buffers MUST NOT alter model snapshot.
+  c.set(0, 99.0);
+  a.set(0, 99.0);
+  b.set(0, 999.0);
+  val again = model.solve(100);
+  if again.is_err(); then stdio.stdout.println("FAIL:simplex:immutable-snapshot"); return; fi
+  val snapshot = again.unwrap();
+  if snapshot.status != "optimal" ||
+     snapshot.objective < 24.799999 || snapshot.objective > 24.800001; then
+    stdio.stdout.println("FAIL:simplex:aliased-model"); return;
+  fi
   let mut Array<f64> bad_b = new Array<f64>();
   bad_b.add(-1.0); bad_b.add(12.0);
-  if simplex.solve_max_leq(rt borrow model.objective,
-      rt borrow model.coefficients, rt borrow bad_b, 2, 100).is_ok(); then
+  if simplex.solve_max_leq(rt borrow c,
+      rt borrow a, rt borrow bad_b, 2, 100).is_ok(); then
     stdio.stdout.println("FAIL:simplex:negative-rhs"); return;
   fi
   stdio.stdout.println("PASS:orie-simplex");

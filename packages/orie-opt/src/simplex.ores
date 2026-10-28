@@ -131,7 +131,7 @@ define module simplex as
         val f64 coef = t.get(row * columns + enter);
         if coef > eps; then
           val f64 ratio = t.get(row * columns + last_col) / coef;
-          if !admitted(ratio, 1000000000000.0); then
+          if !admitted(ratio, 1000000000000.0) || ratio < -eps; then
             return Ok(non_optimal("numerical_failure", n, iteration));
           fi
           if leave == -1 || ratio < best_ratio - eps ||
@@ -171,6 +171,8 @@ define module simplex as
       }
       basis.set(leave, enter);
     }
+    // With a strict pivot budget, another iteration is needed to check
+    // reduced costs. Never silently claim an optimum on limit exhaustion.
     return Ok(non_optimal("pivot_limit", n, pivot_limit));
   }
 end
