@@ -1,0 +1,105 @@
+// Dense Gaussian elimination with partial pivoting.
+// Native Oreslang reference, row-major square A. No Java or FFI.
+// Unstable, ill-conditioned, or resource-exceeding inputs fail closed.
+define module linear_solve as
+  fnc abs_float(f64 x): f64 {
+    if x < 0.0; then return -x; fi
+    return x;
+  }
+
+  fnc bounded(f64 x): bool {
+    return x >= -1000000000000.0 && x <= 1000000000000.0;
+  }
+
+  pub fnc solve(borrow Array<f64> a, borrow Array<f64> b,
+                int n): Result<Array<f64>, String> {
+    if n <= 0 || n > 16 || a.size != n * n || b.size != n; then
+      return Err("linear_solve: invalid matrix dimensions");
+    fi
+    let mut Array<f64> work = new Array<f64>();
+    let mut Array<f64> rhs = new Array<f64>();
+    for (const v of a) {
+      if !bounded(v) || abs_float(v) > 10000.0; then
+        return Err("linear_solve: nonfinite or excessive coefficient");
+      fi
+      work.add(v);
+    }
+    for (const v of b) {
+      if !bounded(v) || abs_float(v) > 10000.0; then
+        return Err("linear_solve: nonfinite or excessive rhs");
+      fi
+      rhs.add(v);
+    }
+
+    val f64 epsilon = 0.000000001;
+    for (let k = 0; k < n; k++) {
+      let int pivot_row = k;
+      let f64 magnitude = abs_float(work.get(k * n + k));
+      for (let r = k + 1; r < n; r++) {
+        val f64 candidate = abs_float(work.get(r * n + k));
+        if candidate > magnitude; then
+          pivot_row = r;
+          magnitude = candidate;
+        fi
+      }
+      if magnitude <= epsilon; then
+        return Err("linear_solve: singular or nearly singular pivot");
+      fi
+      if pivot_row != k; then
+        for (let col = 0; col < n; col++) {
+          val f64 temp = work.get(k * n + col);
+          work.set(k * n + col, work.get(pivot_row * n + col));
+          work.set(pivot_row * n + col, temp);
+        }
+        val f64 temp_rhs = rhs.get(k);
+        rhs.set(k, rhs.get(pivot_row));
+        rhs.set(pivot_row, temp_rhs);
+      fi
+      val f64 pivot = work.get(k * n + k);
+      for (let row = k + 1; row < n; row++) {
+        val f64 factor = work.get(row * n + k) / pivot;
+        work.set(row * n + k, 0.0);
+        for (let col = k + 1; col < n; col++) {
+          val f64 next = work.get(row * n + col) -
+            factor * work.get(k * n + col);
+          if !bounded(next); then return Err("linear_solve: elimination overflow"); fi
+          work.set(row * n + col, next);
+        }
+        val f64 residual = rhs.get(row) - factor * rhs.get(k);
+        if !bounded(residual); then return Err("linear_solve: rhs overflow"); fi
+        rhs.set(row, residual);
+      }
+    }
+
+    let mut Array<f64> x = new Array<f64>();
+    for (let i = 0; i < n; i++) { x.add(0.0); }
+    for (let pos = n; pos > 0; pos--) {
+      val int row = pos - 1;
+      let f64 sum = rhs.get(row);
+      for (let col = row + 1; col < n; col++) {
+        sum = sum - work.get(row * n + col) * x.get(col);
+      }
+      val f64 diagonal = work.get(row * n + row);
+      if abs_float(diagonal) <= epsilon; then
+        return Err("linear_solve: singular diagonal");
+      fi
+      val f64 result = sum / diagonal;
+      if !bounded(result); then return Err("linear_solve: solution overflow"); fi
+      x.set(row, result);
+    }
+    // Reject silently inaccurate results from ill-conditioned systems.
+    for (let row = 0; row < n; row++) {
+      let f64 actual = 0.0;
+      let f64 scale = 1.0;
+      for (let col = 0; col < n; col++) {
+        actual = actual + a.get(row * n + col) * x.get(col);
+        scale = scale + abs_float(a.get(row * n + col) * x.get(col));
+      }
+      if !bounded(actual) || abs_float(actual - b.get(row)) >
+         0.000001 * (scale + abs_float(b.get(row))); then
+        return Err("linear_solve: unacceptable residual");
+      fi
+    }
+    return Ok(x);
+  }
+end

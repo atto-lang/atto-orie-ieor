@@ -1,0 +1,51 @@
+// Deterministic FIFO single-server queue simulation (G/G/1 trace).
+// Times are nonnegative bounded integers; arrivals must be sorted.
+// Each job starts after the previous service completes.
+// Pure actor-owned reference, NOT a concurrent asynchronous service.
+define module queueing as
+  pub define class Trace as
+    pub val Array<int> starts;
+    pub val Array<int> finishes;
+    pub val int total_wait;
+    pub val int makespan;
+    pub constructor(Array<int> starts, Array<int> finishes,
+                    int total_wait, int makespan) {
+      self.starts = starts;
+      self.finishes = finishes;
+      self.total_wait = total_wait;
+      self.makespan = makespan;
+    }
+  end
+
+  pub fnc simulate_fifo(borrow Array<int> arrivals,
+                        borrow Array<int> service_times):
+                        Result<Trace, String> {
+    val int n = arrivals.size;
+    if n > 1024 || n != service_times.size; then
+      return Err("queueing: mismatched or excessive job count");
+    fi
+    let mut Array<int> starts = new Array<int>();
+    let mut Array<int> finishes = new Array<int>();
+    let int clock = 0;
+    let int previous_arrival = 0;
+    let int total_wait = 0;
+    for (let i = 0; i < n; i++) {
+      val int arrival = arrivals.get(i);
+      val int duration = service_times.get(i);
+      if arrival < previous_arrival || arrival < 0 || arrival > 1000000 ||
+         duration < 0 || duration > 100000; then
+        return Err("queueing: unsorted, negative or excessive time");
+      fi
+      previous_arrival = arrival;
+      if arrival > clock; then clock = arrival; fi
+      starts.add(clock);
+      total_wait = total_wait + clock - arrival;
+      clock = clock + duration;
+      if clock > 200000000 || total_wait > 200000000; then
+        return Err("queueing: time accumulator budget exceeded");
+      fi
+      finishes.add(clock);
+    }
+    return Ok(new Trace(starts, finishes, total_wait, clock));
+  }
+end

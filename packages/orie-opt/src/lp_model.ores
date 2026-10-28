@@ -1,0 +1,26 @@
+// Userland model snapshot: explicit row-major bounded canonical LP.
+// No implicit overloads, units, automatic type coercions or foreign solvers.
+import module simplex from "./simplex";
+
+define module lp_model as
+  pub define class Model as
+    pub val Array<f64> objective;
+    pub val Array<f64> coefficients;
+    pub val Array<f64> upper_bounds;
+    pub val int rows;
+    pub constructor(Array<f64> objective, Array<f64> coefficients,
+                    Array<f64> upper_bounds, int rows) {
+      self.objective = objective;
+      self.coefficients = coefficients;
+      self.upper_bounds = upper_bounds;
+      self.rows = rows;
+    }
+
+    pub fnc solve(borrow self, int pivot_limit):
+        Result<simplex.Solution, String> {
+      return simplex.solve_max_leq(rt borrow self.objective,
+          rt borrow self.coefficients, rt borrow self.upper_bounds,
+          self.rows, pivot_limit);
+    }
+  end
+end

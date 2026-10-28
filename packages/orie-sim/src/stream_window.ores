@@ -1,0 +1,52 @@
+// Immutable bounded moving sum snapshots. Single-owner actor state model.
+// This is not async stream consumption or Channel<T> backpressure.
+define module stream_window as
+  pub define class State as
+    pub val int capacity;
+    pub val Array<int> samples;
+    pub val int total;
+    pub constructor(int capacity, Array<int> samples, int total) {
+      self.capacity = capacity;
+      self.samples = samples;
+      self.total = total;
+    }
+  end
+
+  pub fnc create(int window): Result<State, String> {
+    if window <= 0 || window > 256; then
+      return Err("stream_window: capacity must be 1..256");
+    fi
+    return Ok(new State(window, new Array<int>(), 0));
+  }
+
+  pub fnc push(borrow State state, int value): Result<State, String> {
+    if state.capacity <= 0 || state.capacity > 256 ||
+       state.samples.size > state.capacity ||
+       !(value >= -10000 && value <= 10000); then
+      return Err("stream_window: invalid state or sample");
+    fi
+    // Defend against forged or inconsistent snapshots.
+    let int checked_total = 0;
+    for (const sample of state.samples) {
+      if !(sample >= -10000 && sample <= 10000); then
+        return Err("stream_window: sample outside domain");
+      fi
+      checked_total = checked_total + sample;
+    }
+    if checked_total != state.total; then
+      return Err("stream_window: inconsistent state total");
+    fi
+    let mut Array<int> next = new Array<int>();
+    let int total = state.total + value;
+    let int start = 0;
+    if state.samples.size == state.capacity; then
+      total = total - state.samples.get(0);
+      start = 1;
+    fi
+    for (let i = start; i < state.samples.size; i++) {
+      next.add(state.samples.get(i));
+    }
+    next.add(value);
+    return Ok(new State(state.capacity, next, total));
+  }
+end

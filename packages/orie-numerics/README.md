@@ -1,16 +1,10 @@
 # ORIE Numerics
 
-Owned dense and CSR-style sparse matrix reference kernels.
+Native Oreslang-only userland numerical methods.
 
-**Stage:** experimental Oreslang source with deterministic expected-output
-fixtures. Compiler acceptance, runtime execution, performance, and parity
-with Java/GraalVM, LLVM, WASM, .NET and Forge are **not** yet demonstrated.
+- `dense_matrix`: bounded integer dot/multiply reference.
+- `csr_matrix`: bounded integer CSR matvec.
+- `linear_solve`: bounded f64 Gaussian elimination with partial pivoting
+  and original-residual validation. No general purpose stable factorization.
 
-This directory is a **separate package root** using its own
-`.ores.pkg.toml`. Source files expose flat `define module` namespaces
-and snake_case public functions. No solver has been added to language core
-or standard library. The package is not allowed to import another ORIE
-package via relative filesystem traversal; dependency resolution must be
-explicitly designed, version-pinned, and proven first.
-
-See `src/` for APIs and `tests/` for standalone Oreslang guest fixtures.
+Source prototypes, not native Oreslang compiler/guest verified.

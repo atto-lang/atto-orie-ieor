@@ -1,0 +1,34 @@
+// Expected: PASS:orie-queueing
+import module queueing from "../src/queueing";
+import module stream_window from "../src/stream_window";
+pub routine main(): void {
+  let mut Array<int> arrivals = new Array<int>();
+  let mut Array<int> service = new Array<int>();
+  arrivals.add(0); arrivals.add(1); arrivals.add(5);
+  service.add(3); service.add(4); service.add(2);
+  val result = queueing.simulate_fifo(rt borrow arrivals, rt borrow service);
+  if result.is_err(); then stdio.stdout.println("FAIL:queue:admission"); return; fi
+  val trace = result.unwrap();
+  if trace.total_wait != 4 || trace.makespan != 9 ||
+     trace.starts.get(0) != 0 ||
+     trace.starts.get(1) != 3 ||
+     trace.starts.get(2) != 7; then
+    stdio.stdout.println("FAIL:queue:timeline"); return;
+  fi
+  val created = stream_window.create(2);
+  if created.is_err(); then stdio.stdout.println("FAIL:stream:create"); return; fi
+  val state0 = created.unwrap();
+  val first = stream_window.push(rt borrow state0, 3);
+  if first.is_err(); then stdio.stdout.println("FAIL:stream:push"); return; fi
+  val state1 = first.unwrap();
+  val second = stream_window.push(rt borrow state1, 5);
+  if second.is_err(); then stdio.stdout.println("FAIL:stream:second"); return; fi
+  val state2 = second.unwrap();
+  val third = stream_window.push(rt borrow state2, 7);
+  if third.is_err(); then stdio.stdout.println("FAIL:stream:third"); return; fi
+  val state3 = third.unwrap();
+  if state3.total != 12; then
+    stdio.stdout.println("FAIL:stream:eviction"); return;
+  fi
+  stdio.stdout.println("PASS:orie-queueing");
+}

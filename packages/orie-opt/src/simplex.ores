@@ -1,0 +1,176 @@
+// ORIE userland primal TABLEAU simplex v1 (not revised simplex).
+// Maximise c*x subject to A*x <= b, x >= 0, with all b >= 0.
+// Initial slack basis is feasible; no Phase I or equality constraints.
+// Bland entering-variable rule, minimum ratio, basis-index tie breaking.
+// Returns an explicit bounded status, not an unchecked "optimal" claim.
+// This is an experimental native Oreslang source implementation. No Java/FFI.
+define module simplex as
+  pub define class Solution as
+    pub val String status;
+    pub val f64 objective;
+    pub val Array<f64> values;
+    pub val int pivots;
+    pub constructor(String status, f64 objective, Array<f64> values, int pivots) {
+      self.status = status;
+      self.objective = objective;
+      self.values = values;
+      self.pivots = pivots;
+    }
+  end
+
+  fnc magnitude(f64 value): f64 {
+    if value < 0.0; then return -value; fi
+    return value;
+  }
+
+  fnc admitted(f64 value, f64 limit): bool {
+    // NaN fails both comparisons; infinities exceed limit.
+    return value >= -limit && value <= limit;
+  }
+
+  fnc non_optimal(String status, int n, int pivots): Solution {
+    let mut Array<f64> values = new Array<f64>();
+    for (let j = 0; j < n; j++) { values.add(0.0); }
+    return new Solution(status, 0.0, values, pivots);
+  }
+
+  pub fnc solve_max_leq(borrow Array<f64> cost, borrow Array<f64> a,
+                        borrow Array<f64> b, int m, int pivot_limit):
+                        Result<Solution, String> {
+    val int n = cost.size;
+    if n <= 0 || n > 16 || m <= 0 || m > 16 ||
+       b.size != m || a.size != m * n ||
+       pivot_limit <= 0 || pivot_limit > 512; then
+      return Err("simplex: invalid shape or pivot budget");
+    fi
+    for (const c of cost) {
+      if !admitted(c, 100.0); then
+        return Err("simplex: invalid objective coefficient");
+      fi
+    }
+    for (const coef of a) {
+      if !admitted(coef, 100.0); then
+        return Err("simplex: invalid matrix coefficient");
+      fi
+    }
+    for (const rhs of b) {
+      if !admitted(rhs, 1000.0) || rhs < 0.0; then
+        return Err("simplex: requires bounded nonnegative rhs");
+      fi
+    }
+    val f64 eps = 0.00000001;
+    val int columns = n + m + 1;
+    val int last_col = columns - 1;
+    val int obj_offset = m * columns;
+    let mut Array<f64> t = new Array<f64>();
+    let mut Array<int> basis = new Array<int>();
+
+    for (let row = 0; row < m; row++) {
+      for (let j = 0; j < n; j++) {
+        t.add(a.get(row * n + j));
+      }
+      for (let s = 0; s < m; s++) {
+        if s == row; then t.add(1.0);
+        else t.add(0.0); fi
+      }
+      t.add(b.get(row));
+      basis.add(n + row);
+    }
+    for (let j = 0; j < n; j++) { t.add(-cost.get(j)); }
+    for (let s = 0; s < m; s++) { t.add(0.0); }
+    t.add(0.0);
+
+    for (let iteration = 0; iteration < pivot_limit; iteration++) {
+      // Bland: first negative reduced cost, not most negative.
+      let int enter = -1;
+      for (let j = 0; j < n + m; j++) {
+        if enter == -1 && t.get(obj_offset + j) < -eps; then
+          enter = j;
+        fi
+      }
+      if enter == -1; then
+        let mut Array<f64> values = new Array<f64>();
+        for (let j = 0; j < n; j++) { values.add(0.0); }
+        for (let row = 0; row < m; row++) {
+          val int basic = basis.get(row);
+          if basic < n; then
+            val f64 primal = t.get(row * columns + last_col);
+            if primal < -eps || !admitted(primal, 1000000000000.0); then
+              return Ok(non_optimal("numerical_failure", n, iteration));
+            fi
+            if primal < 0.0; then values.set(basic, 0.0);
+            else values.set(basic, primal); fi
+          fi
+        }
+        // Validate returned primal residuals, independently of tableau RHS.
+        for (let row = 0; row < m; row++) {
+          let f64 lhs = 0.0;
+          for (let j = 0; j < n; j++) {
+            lhs = lhs + a.get(row * n + j) * values.get(j);
+          }
+          if !admitted(lhs, 1000000000000.0) ||
+             lhs > b.get(row) + 0.000001; then
+            return Ok(non_optimal("numerical_failure", n, iteration));
+          fi
+        }
+        let f64 checked_objective = 0.0;
+        for (let j = 0; j < n; j++) {
+          checked_objective = checked_objective + cost.get(j) * values.get(j);
+        }
+        if !admitted(checked_objective, 1000000000000.0) ||
+           magnitude(checked_objective - t.get(obj_offset + last_col))
+             > 0.000001 * (1.0 + magnitude(checked_objective)); then
+          return Ok(non_optimal("numerical_failure", n, iteration));
+        fi
+        return Ok(new Solution("optimal", checked_objective, values, iteration));
+      fi
+
+      let int leave = -1;
+      let f64 best_ratio = 1000000000000.0;
+      for (let row = 0; row < m; row++) {
+        val f64 coef = t.get(row * columns + enter);
+        if coef > eps; then
+          val f64 ratio = t.get(row * columns + last_col) / coef;
+          if !admitted(ratio, 1000000000000.0); then
+            return Ok(non_optimal("numerical_failure", n, iteration));
+          fi
+          if leave == -1 || ratio < best_ratio - eps ||
+             (magnitude(ratio - best_ratio) <= eps &&
+              basis.get(row) < basis.get(leave)); then
+            best_ratio = ratio;
+            leave = row;
+          fi
+        fi
+      }
+      if leave == -1; then
+        return Ok(non_optimal("unbounded", n, iteration));
+      fi
+
+      val int offset = leave * columns;
+      val f64 pivot = t.get(offset + enter);
+      if !admitted(pivot, 1000000000000.0) || pivot <= eps; then
+        return Ok(non_optimal("numerical_failure", n, iteration));
+      fi
+      for (let col = 0; col < columns; col++) {
+        t.set(offset + col, t.get(offset + col) / pivot);
+      }
+      for (let row = 0; row <= m; row++) {
+        if row != leave; then
+          val int start = row * columns;
+          val f64 factor = t.get(start + enter);
+          for (let col = 0; col < columns; col++) {
+            t.set(start + col,
+                  t.get(start + col) - factor * t.get(offset + col));
+          }
+        fi
+      }
+      for (const item of t) {
+        if !admitted(item, 1000000000000.0); then
+          return Ok(non_optimal("numerical_failure", n, iteration + 1));
+        fi
+      }
+      basis.set(leave, enter);
+    }
+    return Ok(non_optimal("pivot_limit", n, pivot_limit));
+  }
+end

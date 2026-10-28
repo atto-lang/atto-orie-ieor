@@ -1,0 +1,34 @@
+// Independent 0/1 packing enumeration: optimum 9, with [1,0,1].
+// LP relaxation reaches 9.5, so a genuine branch must occur.
+// Expected: PASS:orie-branch-and-bound
+import module branch_and_bound from "../src/branch_and_bound";
+pub routine main(): void {
+  let mut Array<f64> cost = new Array<f64>();
+  cost.add(6.0); cost.add(5.0); cost.add(3.0);
+  let mut Array<f64> a = new Array<f64>();
+  a.add(4.0); a.add(3.0); a.add(2.0);
+  let mut Array<f64> rhs = new Array<f64>();
+  rhs.add(6.0);
+  val result = branch_and_bound.solve_binary(
+    rt borrow cost, rt borrow a, rt borrow rhs, 1, 128);
+  if result.is_err(); then
+    stdio.stdout.println("FAIL:bnb:admission"); return;
+  fi
+  val answer = result.unwrap();
+  if answer.status != "optimal" ||
+     answer.objective < 8.999999 || answer.objective > 9.000001 ||
+     answer.values.get(0) != 1 ||
+     answer.values.get(1) != 0 ||
+     answer.values.get(2) != 1; then
+    stdio.stdout.println("FAIL:bnb:oracle"); return;
+  fi
+  val partial = branch_and_bound.solve_binary(
+    rt borrow cost, rt borrow a, rt borrow rhs, 1, 1);
+  if partial.is_err(); then
+    stdio.stdout.println("FAIL:bnb:budget"); return;
+  fi
+  if partial.unwrap().status != "node_limit"; then
+    stdio.stdout.println("FAIL:bnb:misreported-optimality"); return;
+  fi
+  stdio.stdout.println("PASS:orie-branch-and-bound");
+}

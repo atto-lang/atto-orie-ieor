@@ -1,16 +1,15 @@
 # ORIE Optimization
 
-Linear feasibility primitives and bounded exact 0/1 knapsack DP.
+Native Oreslang-only userland optimization algorithms and models.
 
-**Stage:** experimental Oreslang source with deterministic expected-output
-fixtures. Compiler acceptance, runtime execution, performance, and parity
-with Java/GraalVM, LLVM, WASM, .NET and Forge are **not** yet demonstrated.
+- `src/linear_model.ores`: bounded 2D integer feasibility.
+- `src/knapsack_dp.ores`: exact bounded 0/1 knapsack via DP.
+- `src/lp_model.ores`: row-major canonical LP snapshot.
+- `src/simplex.ores`: bounded one-phase **primal tableau simplex**,
+  not revised simplex or full industrial LP.
+- `src/branch_and_bound.ores`: bounded 0/1 packing branch-and-bound
+  using LP relaxation. Not branch-and-cut or generic MILP.
 
-This directory is a **separate package root** using its own
-`.ores.pkg.toml`. Source files expose flat `define module` namespaces
-and snake_case public functions. No solver has been added to language core
-or standard library. The package is not allowed to import another ORIE
-package via relative filesystem traversal; dependency resolution must be
-explicitly designed, version-pinned, and proven first.
-
-See `src/` for APIs and `tests/` for standalone Oreslang guest fixtures.
+These are source prototypes, not native-compiler/guest verified.
+See [algorithm contracts](../../docs/ALGORITHMS.md) and
+[native validation](../../docs/VALIDATION.md).

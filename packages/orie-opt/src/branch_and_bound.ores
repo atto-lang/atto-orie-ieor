@@ -1,0 +1,193 @@
+// Bounded binary packing branch-and-bound using native Oreslang LP relaxation.
+// Max c*x subject to A*x <= b, A,b >=0 and x[j] in {0,1}.
+// Explicit resource_limit is never silently called optimal.
+// Experimental source: guest compiler and numerical correctness unverified.
+import module simplex from "./simplex";
+define module branch_and_bound as
+  pub define class BinarySolution as
+    pub val String status;
+    pub val f64 objective;
+    pub val Array<int> values;
+    pub val int explored_nodes;
+    pub constructor(String status, f64 objective,
+                    Array<int> values, int explored_nodes) {
+      self.status = status;
+      self.objective = objective;
+      self.values = values;
+      self.explored_nodes = explored_nodes;
+    }
+  end
+
+  define class Node as
+    pub val Array<int> fixed;
+    pub constructor(Array<int> fixed) { self.fixed = fixed; }
+  end
+
+  fnc copy_with_fix(borrow Array<int> original, int index, int choice):
+                    Array<int> {
+    let mut Array<int> next = new Array<int>();
+    for (let j = 0; j < original.size; j++) {
+      if j == index; then next.add(choice);
+      else next.add(original.get(j)); fi
+    }
+    return next;
+  }
+
+  // Free variables stay [0,1]. Fixed 1s shift RHS; fixed positions
+  // are eliminated from the objective and coefficients.
+  fnc relaxation(borrow Array<f64> cost, borrow Array<f64> a,
+                 borrow Array<f64> b, int m,
+                 borrow Array<int> fixed):
+                 Result<simplex.Solution, String> {
+    val int n = cost.size;
+    let mut Array<f64> local_cost = new Array<f64>();
+    let mut Array<f64> local_a = new Array<f64>();
+    let mut Array<f64> local_b = new Array<f64>();
+    for (let j = 0; j < n; j++) {
+      if fixed.get(j) == -1; then local_cost.add(cost.get(j));
+      else local_cost.add(0.0); fi
+    }
+    for (let row = 0; row < m; row++) {
+      let f64 residual = b.get(row);
+      for (let j = 0; j < n; j++) {
+        val f64 coeff = a.get(row * n + j);
+        if fixed.get(j) == 1; then residual = residual - coeff; fi
+        if fixed.get(j) == -1; then local_a.add(coeff);
+        else local_a.add(0.0); fi
+      }
+      if residual < -0.00000001; then
+        let mut Array<f64> empty = new Array<f64>();
+        for (let j = 0; j < n; j++) { empty.add(0.0); }
+        return Ok(new simplex.Solution("infeasible_node", 0.0, empty, 0));
+      fi
+      if residual < 0.0; then local_b.add(0.0);
+      else local_b.add(residual); fi
+    }
+    for (let bound = 0; bound < n; bound++) {
+      for (let j = 0; j < n; j++) {
+        if bound == j && fixed.get(j) == -1; then local_a.add(1.0);
+        else local_a.add(0.0); fi
+      }
+      local_b.add(1.0);
+    }
+    return simplex.solve_max_leq(rt borrow local_cost,
+      rt borrow local_a, rt borrow local_b, m + n, 256);
+  }
+
+  pub fnc solve_binary(borrow Array<f64> cost, borrow Array<f64> a,
+                       borrow Array<f64> b, int m, int node_limit):
+                       Result<BinarySolution, String> {
+    val int n = cost.size;
+    if n <= 0 || n > 8 || m <= 0 || m > 8 ||
+       a.size != n * m || b.size != m ||
+       node_limit <= 0 || node_limit > 1024; then
+      return Err("branch_and_bound: invalid dimensions or node budget");
+    fi
+    // Written positively so NaN fails closed (x<lo || x>hi alone is unsafe).
+    for (const c of cost) {
+      if !(c >= -100.0 && c <= 100.0); then
+        return Err("branch_and_bound: invalid objective coefficient");
+      fi
+    }
+    for (const value of a) {
+      if !(value >= 0.0 && value <= 100.0); then
+        return Err("branch_and_bound: invalid packing coefficient");
+      fi
+    }
+    for (const limit of b) {
+      if !(limit >= 0.0 && limit <= 1000.0); then
+        return Err("branch_and_bound: invalid rhs");
+      fi
+    }
+
+    // Zero is known feasible for this admitted nonnegative packing model.
+    let mut Array<int> incumbent = new Array<int>();
+    let mut Array<int> initial = new Array<int>();
+    for (let j = 0; j < n; j++) {
+      incumbent.add(0);
+      initial.add(-1);
+    }
+    let f64 best = 0.0;
+    let mut Array<Node> queue = new Array<Node>();
+    queue.add(new Node(initial));
+    let int next = 0;
+    let int explored = 0;
+
+    for (let step = 0; step < node_limit; step++) {
+      if next == queue.size; then
+        return Ok(new BinarySolution("optimal", best, incumbent, explored));
+      fi
+      val Node node = queue.get(next);
+      next = next + 1;
+      explored = explored + 1;
+      val relaxation_result = relaxation(rt borrow cost, rt borrow a,
+        rt borrow b, m, rt borrow node.fixed);
+      if relaxation_result.is_err(); then
+        return Err("branch_and_bound: LP relaxation failed admission");
+      fi
+      val solution = relaxation_result.unwrap();
+      if solution.status == "infeasible_node"; then
+        // This node cannot improve the incumbent.
+      else
+        if solution.status != "optimal"; then
+          return Err("branch_and_bound: LP relaxation not certified optimal");
+        fi
+        let f64 offset = 0.0;
+        for (let j = 0; j < n; j++) {
+          if node.fixed.get(j) == 1; then offset = offset + cost.get(j); fi
+        }
+        val f64 upper_bound = offset + solution.objective;
+        if upper_bound > best + 0.00000001; then
+          let int branch = -1;
+          let mut Array<int> candidate = new Array<int>();
+          let f64 objective = 0.0;
+          for (let j = 0; j < n; j++) {
+            val int fixation = node.fixed.get(j);
+            if fixation == 1; then
+              candidate.add(1);
+              objective = objective + cost.get(j);
+            else
+              if fixation == 0; then
+                candidate.add(0);
+              else
+                val f64 value = solution.values.get(j);
+                if !(value >= -0.000001 && value <= 1.000001); then
+                  return Err("branch_and_bound: invalid relaxed binary bound");
+                fi
+                if value > 0.00000001 && value < 0.99999999 &&
+                   branch == -1; then branch = j; fi
+                if value >= 0.5; then
+                  candidate.add(1);
+                  objective = objective + cost.get(j);
+                else candidate.add(0); fi
+              fi
+            fi
+          }
+          if branch == -1; then
+            let bool admissible = true;
+            for (let row = 0; row < m; row++) {
+              let f64 lhs = 0.0;
+              for (let j = 0; j < n; j++) {
+                lhs = lhs + a.get(row * n + j) * candidate.get(j);
+              }
+              if lhs > b.get(row) + 0.00000001; then
+                admissible = false;
+              fi
+            }
+            if admissible && objective > best + 0.00000001; then
+              best = objective;
+              incumbent = candidate;
+            fi
+          else
+            queue.add(new Node(copy_with_fix(rt borrow node.fixed, branch, 0)));
+            queue.add(new Node(copy_with_fix(rt borrow node.fixed, branch, 1)));
+          fi
+        fi
+      fi
+    }
+    if next == queue.size; then
+      return Ok(new BinarySolution("optimal", best, incumbent, explored));
+    fi
+    return Ok(new BinarySolution("node_limit", best, incumbent, explored));
+  }
+end

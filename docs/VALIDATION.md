@@ -1,54 +1,58 @@
-# Exact-head test and evidence policy
+# Native Oreslang test evidence policy
 
-**Current gate status: UNEXECUTED.** These files are checked-in proposed
-Oreslang guest cases, not execution receipts. No exact Java/GraalVM, LLVM,
-WASM, .NET or Forge compiler run is claimed.
+**Status: UNEXECUTED** for the ORIE algorithms. All implementation files
+and guest test cases use **Oreslang**. No Java compilers, wrappers, Java
+runtime, Java bridge, or non-Oreslang numerical implementation is admitted
+to ORIE. Infrastructure shell/YAML may perform layout checks only.
 
-## Source-level guest targets
+## Native-first order of operations
 
-| Package | Guest file | Expected stdout |
-| --- | --- | --- |
-| orie-numerics | `tests/matrix_contract.ores` | `PASS:orie-numerics` |
-| orie-opt | `tests/optimization_contract.ores` | `PASS:orie-opt` |
-| orie-sim | `tests/simulation_contract.ores` | `PASS:orie-sim` |
-| orie-plan | `tests/planning_contract.ores` | `PASS:orie-plan` |
+1. Pin ORIE repo commit and Git tree SHA.
+2. Use the **native Oreslang LLVM frontend and native runtime**.
+   Record the exact compiler source SHA and built compiler binary digest.
+3. Check each package's `.ores.pkg.toml` and relative `import module` graph
+   with an actual compiler; no direct package-root traversal.
+4. Run Oreslang source -> LLVM IR -> native object -> executable and
+   compare exact exit, stdout and stderr against declared oracles.
+5. Run negative tests for invalid shapes, limits, nonfinite numbers,
+   singular systems, LP pivot/node cutoffs and graph/cycle failures.
+6. Later port the same exact guest programs to WASM32, .NET Native AOT
+   and Forge, using those backends' native target modes. Do not describe
+   parser-only checks as guest execution.
 
-Run **each case from its own package root** with the target backend's real
-`--check` or compile mode and then execute a true Oreslang guest or
-native target program. Require exact stdout, zero exit, and no unexpected
-stderr. The constructor, parser, import graph and ownership checks must
-reject invalid syntax rather than relying on static grep.
+**Blocking native backend prerequisite:** the current native LLVM
+implementation admits an incomplete scalar subset; it does not yet
+support arbitrary `Array<f64>`, all `Result` payloads, numerical matrix
+types and module imports at the level these files require.
+Do not mark these fixtures as passed until that is changed and actually
+executed. Do not substitute a mock interpreter or a host-language port.
 
-Pin the ORIE Git commit and tree SHA, exact compiler source SHA/tree SHA,
-binary hash, toolchain and target architecture. Preserve execution logs and
-actual command lines. Report `compile`, `guest-run`, `native-aot-run`
-and `source-structure` as independent evidence classes; a structure
-check never proves guest semantics.
+## Nine Oreslang reference guest test cases
 
-## Cross-backend parity
+| Package | Cases |
+| --- | --- |
+| orie-numerics | `matrix_contract.ores`, `linear_solve_contract.ores` |
+| orie-opt | `optimization_contract.ores`, `simplex_contract.ores`, `simplex_status_contract.ores`, `branch_and_bound_contract.ores` |
+| orie-sim | `simulation_contract.ores`, `queueing_contract.ores` |
+| orie-plan | `planning_contract.ores` |
 
-- Java/GraalVM: exact-head check, JDK 25 guest execution, Native Image
-  only if compiler/runtime truly supports it.
-- LLVM: actual source -> LLVM IR -> native object/executable -> run.
-- WASM: actual wasm32 artifact built from accepted source and executed in a
-  worker/runtime; a native LLVM run is not WASM parity.
-- .NET: actual Oreslang -> CIL -> Linux and Windows Native AOT where supported.
-- Forge: actual Forge frontend -> admitted IR -> runtime execution.
+Expected exact stdout markers:
+`PASS:orie-numerics`, `PASS:orie-linear-solve`,
+`PASS:orie-opt`, `PASS:orie-simplex`,
+`PASS:orie-simplex-status`, `PASS:orie-branch-and-bound`,
+`PASS:orie-sim`, `PASS:orie-queueing`, `PASS:orie-plan`.
 
-If a backend does not support `Array`, `Result`, imports or modules,
-record `unsupported` and a deterministic diagnostic; never count a
-compiler-rejected fixture as a successful solver run.
+A failed or unstarted job with zero compiled source files is
+**infrastructure/unverified**, not a successful or failed solver result.
+Runner mirroring is restricted by private-source export policies:
+funded minutes in another org do not confer export authorization.
+Run native validation on authorized infrastructure or on an
+approved exact-tree mirror.
 
-Private source mirror policy: require independent approval of a specific
-source/destination pair and full exact-blob or exact-tree verification. A
-different organization's remaining Actions minutes is not itself an export
-authorization.
+## Coverage still needed
 
-## Numerical validation beyond smoke tests
-
-Reference vectors should be independently computed using bounded integer
-enumeration or separately validated established numerical libraries. Add
-property tests, metamorphic tests, malformed CSR pointers, duplicate columns,
-overflow/domain limits, zero budget, forbidden negative edge weights,
-directed-cycle rejection, cancellation and repeated actor memory retirement.
-A deterministic smoke output alone is not proof of optimality or memory safety.
+Dual feasibility, degeneracy, unbounded/negative-RHS admission,
+numerical tolerance adversarial cases, branch-bound correctness,
+per-case immutable input hashes, exact primal residuals, resource
+limits, cancellation and physical actor retirement. Independent
+reference libraries must not be included in production ORIE sources.

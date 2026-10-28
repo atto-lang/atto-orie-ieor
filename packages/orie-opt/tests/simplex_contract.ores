@@ -1,0 +1,32 @@
+// Positive/negative guest oracles: real compiler execution required.
+// Expected: PASS:orie-simplex
+import module simplex from "../src/simplex";
+import module lp_model from "../src/lp_model";
+pub routine main(): void {
+  let mut Array<f64> c = new Array<f64>();
+  c.add(3.0); c.add(5.0);
+  let mut Array<f64> a = new Array<f64>();
+  a.add(2.0); a.add(1.0);
+  a.add(1.0); a.add(3.0);
+  let mut Array<f64> b = new Array<f64>();
+  b.add(10.0); b.add(12.0);
+  val model = new lp_model.Model(c, a, b, 2);
+  val result = model.solve(100);
+  if result.is_err(); then stdio.stdout.println("FAIL:simplex:admission"); return; fi
+  val solution = result.unwrap();
+  if solution.status != "optimal" ||
+     solution.objective < 24.799999 || solution.objective > 24.800001 ||
+     solution.values.get(0) < 3.599999 ||
+     solution.values.get(0) > 3.600001 ||
+     solution.values.get(1) < 2.799999 ||
+     solution.values.get(1) > 2.800001; then
+    stdio.stdout.println("FAIL:simplex:primal"); return;
+  fi
+  let mut Array<f64> bad_b = new Array<f64>();
+  bad_b.add(-1.0); bad_b.add(12.0);
+  if simplex.solve_max_leq(rt borrow model.objective,
+      rt borrow model.coefficients, rt borrow bad_b, 2, 100).is_ok(); then
+    stdio.stdout.println("FAIL:simplex:negative-rhs"); return;
+  fi
+  stdio.stdout.println("PASS:orie-simplex");
+}

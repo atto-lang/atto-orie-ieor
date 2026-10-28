@@ -1,4 +1,4 @@
-name: ORIE layout and manifest smoke (not compiler tests)
+name: ORIE native-source layout (not compiler tests)
 on:
   push:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Check four independent package roots and fixture paths
+      - name: Check four package roots and all native guest fixtures
         shell: bash
         run: |
           set -euo pipefail
@@ -21,14 +21,24 @@ jobs:
             test -f "packages/$pkg/.ores.pkg.toml"
             test -f "packages/$pkg/README.md"
           done
-          test -f packages/orie-numerics/tests/matrix_contract.ores
-          test -f packages/orie-opt/tests/optimization_contract.ores
-          test -f packages/orie-sim/tests/simulation_contract.ores
-          test -f packages/orie-plan/tests/planning_contract.ores
+          for fixture in \
+            packages/orie-numerics/tests/matrix_contract.ores \
+            packages/orie-numerics/tests/linear_solve_contract.ores \
+            packages/orie-opt/tests/optimization_contract.ores \
+            packages/orie-opt/tests/simplex_contract.ores \
+            packages/orie-opt/tests/simplex_status_contract.ores \
+            packages/orie-opt/tests/branch_and_bound_contract.ores \
+            packages/orie-sim/tests/simulation_contract.ores \
+            packages/orie-sim/tests/queueing_contract.ores \
+            packages/orie-plan/tests/planning_contract.ores; do
+            test -f "$fixture"
+          done
           test "$(find packages -name '.ores.pkg.toml' -type f | wc -l)" -eq 4
-          test "$(find packages -name '*.ores' -type f | wc -l)" -eq 12
-          if find . -name '*.py' -o -name '*.pyi' -o -name '*.ipynb' | grep -q .; then
-            echo "Python tooling prohibited" >&2
+          test "$(find packages -name '*.ores' -type f | wc -l)" -eq 23
+          if find . -type f \( -name '*.java' -o -name '*.class' \
+             -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
+             -o -name '*.ipynb' \) | grep -q .; then
+            echo 'Forbidden host-language implementation or tooling present' >&2
             exit 1
           fi
-          echo "layout-only PASS: does not compile or run Oreslang"
+          echo 'LAYOUT PASS only; native compiler tests not executed'

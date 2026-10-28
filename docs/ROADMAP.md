@@ -1,32 +1,31 @@
-# ORIE implementation roadmap
+# ORIE native-only engineering roadmap
 
-These are **planned**, unless explicitly tagged `source-prototype`.
+ORIE algorithms are implemented in Oreslang `.ores` files, never Java or
+other host-language solvers. No solver belongs in core or stdlib.
 
-| Stage | Work | Acceptance |
+| Stage | Status | Required outcome |
 | --- | --- | --- |
-| P0a | Four v1 package roots, modules, bounded integer kernels | Source-prototype committed; real guest execution pending |
-| P0b | Compiler/guest proof, negative tests, exact source hashes | Java/GraalVM first, then four other backends |
-| P0c | Numerics: f32/f64/Decimal policy, dense/sparse matrix API, condition estimates | Independent high-precision oracles and actor memory budgets |
-| P0d | Generic LP model, revised primal/dual simplex, presolve, basis updates | Primal/dual feasibility, degeneracy, unbounded/infeasible certificates |
-| P0e | MILP branch-and-bound then branch-and-cut | Node budgets, incumbent bounds, determinism, strong adversarial tests |
-| P1a | Streaming API backed by std channels, bounded windows and cancellation | Backpressure and physical retirement under load |
-| P1b | Discrete-event simulation and probabilistic distributions | Seeded replay, ordering, arrival/service queue oracles |
-| P1c | Graph min-cost flow, max flow, matching, critical-path and resource scheduling | Differential benchmark instances and exact results |
-| P2 | Nonlinear, stochastic, robust, CP-SAT and optional external adapters | Explicit provider features and provenance, no silent fallback |
+| Four package roots and bounded integer kernels | source prototype | Native compiler + guest oracles |
+| Dense Gaussian elimination and residual checks | source prototype | Genuine native f64/Array lowering and ill-conditioned cases |
+| Canonical LP model + primal tableau simplex | source prototype | Native execution, degeneracy/duality and numerical certification |
+| Bounded 0/1 branch-and-bound using LP relaxations | source prototype | Exact enumeration differential tests, cutoff, feasibility proof |
+| Deterministic FIFO and streaming window | source prototype | Guest results and invalid-input rejection |
+| Revised primal/dual simplex and Phase I feasibility | planned | Basis factorization, warm starts, robust infeasible/unbounded certificates |
+| Generic integer MILP + branch-and-cut | planned | Bounds, integrality, cuts, strong negative oracles |
+| Actor-parallel optimization and sim workers | planned | Isolated actor-owned state, bounded Channel backpressure, deterministic barrier/reduction and cancellation |
+| Sparse LU/QR/Cholesky, graph flow, scheduling | planned | Stable numerics, precise constraints, independent solver oracles |
+| Native LLVM, then WASM32/.NET/Forge parity | blocked | Exact SHA check/compile/execute; never infer parity from source alone |
 
-Prioritize correct single-actor reference solvers before parallel execution.
-Only mark an algorithm `implemented` after end-to-end guest execution,
-not because a contract or type declaration exists.
+First native gate is to enable the needed f64, Array, Result and module-linking
+support in the LLVM Oreslang compiler, **without** adding host-language
+implementations to ORIE. ORIE must stay a userland consumer.
 
-## Reusable acceptance cases
+## Acceptance inputs
 
-- LP: bounded feasible optimum, alternate optima, infeasible, unbounded,
-  redundant constraints, degeneracy, numerical near-singularity.
-- MILP: integrality, fractional LP relaxation, exact tiny enumeration
-  oracle, node cutoffs, cancellation, incumbent quality, gap bounds.
-- Matrix: dense/sparse equivalence, zero size rejection, ill-conditioned
-  solves, overflow/NaN policy, stable pivoting, allocation budgets.
-- Simulation: same-time event stable ordering, overflow, empty queue,
-  deterministic seeds, time limits and cancellation.
-- Planning: disconnected nodes, cycles, tie cases, negative edge rejection,
-  resource conflicts, invalid capacities and precedence violations.
+Primal simplex: feasible 24.8 optimum, invalid negative RHS, unbounded
+canonical model, degenerate pivots, pivot exhaustion, independent LP oracle.
+Branch-and-bound: 9 objective packing case where LP relaxation is 9.5,
+explicit `node_limit` rather than false `optimal`, malformed input,
+integer enumeration, resource bounds and numerical failure.
+Simulation: FIFO 4 total wait/9 makespan, stable time ordering and
+moving-window eviction, time and capacity violations.
