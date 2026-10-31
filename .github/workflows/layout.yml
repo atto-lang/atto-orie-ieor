@@ -1,6 +1,9 @@
 name: ORIE native-source layout (not compiler tests)
 on:
+  # PR branches run once through pull_request; main retains push coverage.
+  # A pull_request checkout is still explicitly pinned to its head SHA below.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
