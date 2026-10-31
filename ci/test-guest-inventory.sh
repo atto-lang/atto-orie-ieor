@@ -109,7 +109,11 @@ reject missing_manifest
 setup; printf '%s\n' 'schema_version = "1"' \
   > "$sandbox/packages/orie-opt/src/.ores.pkg.toml"
 reject extra_manifest
+setup
+sed -i 's@^  stdio.stdout.println("PASS:orie-linear-solve");@// stdio.stdout.println("PASS:orie-linear-solve");@' \
+  "$sandbox/packages/orie-numerics/tests/linear_solve_contract.ores"
+reject commented_out_guest_stdout_marker
 setup; accept restored_baseline
 
-[[ "$checks" -eq 16 ]] || { echo 'INVENTORY_TEST_FAIL incorrect check count' >&2; exit 1; }
+[[ "$checks" -eq 17 ]] || { echo 'INVENTORY_TEST_FAIL incorrect check count' >&2; exit 1; }
 printf 'ORIE_SYNTHETIC_LAYOUT_TESTS_PASS=%d (source-free; no native guests)\n' "$checks"

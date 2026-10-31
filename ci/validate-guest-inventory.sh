@@ -38,7 +38,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   # Structural oracle declaration must appear exactly once. A duplicate
   # expected PASS emission would make the exact-one-line guest contract
   # ambiguous even though no parser or guest has run at this stage.
-  [[ "$(grep -Fc -- "stdio.stdout.println(\"$marker\");" "$path")" -eq 1 ]] ||
+  # Source-only tripwire: count complete, active-looking PASS statements.
+  # A commented-out print must not fulfill the manifest declaration.
+  # This is not a parser, compiler, or guest-runtime admission result.
+  [[ "$(grep -Ec -- "^[[:space:]]*stdio[.]stdout[.]println[(]\"$marker\"[)];[[:space:]]*(//.*)?$" "$path")" -eq 1 ]] ||
     fail "missing or duplicated guest stdout marker in $path"
   count=$((count + 1))
 done < "$inventory"

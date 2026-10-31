@@ -219,11 +219,11 @@ ORIE checkout, the Oreslang compiler, or the ORIE guest runtime.
 ## 2026-10-31 next-step CI and compiler admission split (UNEXECUTED)
 
 - `ci/test-guest-inventory.sh` creates a **synthetic**, disposable 13-fixture
-  Git workspace and exercises 16 source-layout outcomes: two valid baselines
+  Git workspace and exercises 17 source-layout outcomes: two valid baselines
   plus duplicate-row, extra-column, missing-tab, path-traversal, CRLF,
   symlinked-guest, missing-stdout-marker, duplicate-guest-stdout-marker, unlisted-guest, duplicate-marker,
-  linked-ledger, linked-package-root, missing-manifest and extra-manifest
-  rejection. `.github/workflows/layout.yml` now invokes it after the
+  linked-ledger, linked-package-root, missing-manifest, extra-manifest,
+  and commented-out PASS print rejection. `.github/workflows/layout.yml` now invokes it after the
   canonical inventory check. These **new CI steps are configured, not
   executed** while Actions runner admission is failing before steps begin.
 - `ci/scalar-llvm-smoke.ores` is an intentionally separate compiler-only
