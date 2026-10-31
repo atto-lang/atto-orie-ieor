@@ -38,6 +38,11 @@ jobs:
           test -f ci/test-native-preflight.sh
           test ! -L ci/test-native-preflight.sh
           bash ci/test-native-preflight.sh
+          # Synthetic checks of exact link argv construction and stdout pipe;
+          # still no native Oreslang compiler/guest execution.
+          test -f ci/test-native-link-transport.sh
+          test ! -L ci/test-native-link-transport.sh
+          bash ci/test-native-link-transport.sh
           # Algorithms and tests are pure Oreslang: host implementations forbidden.
           if find . -type f \( -name '*.java' -o -name '*.class' \
              -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
