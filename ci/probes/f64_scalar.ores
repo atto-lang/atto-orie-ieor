@@ -1,0 +1,6 @@
+// Positive compiler-admission probe only: native f64 type and comparison.
+pub fnc main(): int {
+  val f64 value = 0.3;
+  if value > 0.0; then return 42;
+  else return 86; fi
+}
