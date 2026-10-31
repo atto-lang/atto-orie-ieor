@@ -177,11 +177,12 @@ prepare an exact clean ORIE Git checkout and an exact clean native LLVM
 compiler Git checkout, build the genuine native compiler there, and invoke:
 
 ```sh
-bash ci/run-native-fixtures.sh /absolute/path/to/oreslang-llvmc \
+bash ci/run-native-fixtures.sh /absolute/path/inside-llvm-checkout/oreslang-llvmc \
   /absolute/path/to/oreslang-source.llvm \
   /absolute/path/to/fresh-receipts-dir-outside-ORIE \
   <full-40-character-ORIE-commit-SHA> \
-  <full-40-character-LLVM-commit-SHA>
+  <full-40-character-LLVM-commit-SHA> \
+  <independently-pinned-64-character-compiler-binary-sha256>
 ```
 
 The gate validates the canonical TSV, exact Git heads/trees and clean tracked
@@ -241,3 +242,30 @@ ORIE checkout, the Oreslang compiler, or the ORIE guest runtime.
 runs currently have zero executed steps and no authorized compiler binary
 is connected to this draft. The scalar probe, synthetic Bash CI tests and
 13 Oreslang guests must each acquire real pinned execution receipts.
+
+## Native compiler / linker executable integrity (source patch, not a run)
+
+The native receipt runner requires six parameters: the **real compiler
+executable residing physically inside the pinned LLVM source checkout**,
+LLVM Git checkout path, fresh output directory outside either repository,
+full ORIE/LLVM commit hashes, and an **independently pinned native compiler
+executable SHA-256**. A mismatched compiler digest fails before creating
+the receipt directory. The compiler binary and native linker paths are
+resolved to physical absolute executables; the linker path is reused for
+both scalar smoke and 13 guest builds. Its version, path and SHA-256 are
+recorded, and both executable digests are checked again before aggregate
+13/13 success. These checks guard against casual mutable-PATH substitution
+and changed binaries; they do **not** provide a secure boot chain, prove
+compiler source reproducibility, or attest a privileged runner.
+
+Set `umask 077` on trusted shared runners: the receipt directory and
+individual LLVM IR, native binaries, logs, stdout/stderr, and provenance
+must not be readable by other local users. The runner's executing user
+still has access, so the runner and private-source boundary must be trusted.
+Do not create a replacement certificate from host-language simulated
+execution or treat GitHub Actions jobs with `steps=[]` as testing evidence.
+
+**Admission remains blocked:** the source-org source-free canary and layout
+workflow still have zero executed job steps. Only an authorized administrator
+can repair Actions billing, workflow policy, or runner-group eligibility.
+This documentation and script diff do not assert any native guest pass.
