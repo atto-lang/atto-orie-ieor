@@ -1,0 +1,6 @@
+// Positive compiler-admission probe: ORIE's actual stdout surface.
+// Expected output: PASS:orie-stdio followed by exactly one newline.
+pub fnc main(): int {
+  stdio.stdout.println("PASS:orie-stdio");
+  return 0;
+}
