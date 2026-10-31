@@ -154,7 +154,8 @@ class-payload guest compilation. Blocked fixtures must fail closed.
   feasibility tolerance: any represented capacity violation is rejected.
   `branch_and_bound_contract.ores` adds a near-boundary (1.0 item against
   capacity 0.999999999) false-certificate regression. It expects explicit
-  failure rather than a misleading `optimal` result.
+  conservative failure **or** an independently correct zero optimum,
+  never an infeasible positive optimum.
 - Dense Gaussian elimination checks both each residual product and the
   accumulated residual scale against finite bounds before treating the
   computed residual as valid.
