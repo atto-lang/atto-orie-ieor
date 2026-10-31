@@ -185,15 +185,19 @@ bash ci/run-native-fixtures.sh /absolute/path/to/oreslang-llvmc \
 ```
 
 The gate validates the canonical TSV, exact Git heads/trees and clean tracked
-source, records the compiler binary hash/toolchain and per-fixture source hash,
+source, creates an exclusive new receipt directory outside both ORIE and LLVM
+source roots (existing receipt paths cannot be overwritten), records the
+compiler binary hash/toolchain and per-fixture source hash,
 runs real Oreslang source -> emitted LLVM IR -> Clang-linked native executable
 -> native guest execution, with 60-second compiler, 30-second linker and
 10-second guest timeouts, and compares **byte-exact** stdout (one trailing
 newline), empty stderr, and exit status zero. It preserves per-fixture source,
 IR, native binary hashes, compiler/link/guest exit codes and diagnostics.
 A compiler rejection is recorded as `COMPILER_REJECTED_UNCLASSIFIED`, not
-automatically called a negative test PASS; a link failure or guest mismatch
-likewise blocks the aggregate 13/13 gate. No mock or host-implemented solver
+automatically called a negative test PASS. GNU timeout exit code 124 is
+classified separately as `COMPILER_TIMEOUT`, `NATIVE_LINK_TIMEOUT` or
+`GUEST_TIMEOUT` with per-stage exit codes and diagnostics retained.
+A link failure or guest mismatch likewise blocks the aggregate 13/13 gate. No mock or host-implemented solver
 fallback is permitted. An unsupported feature must be independently
 classified after inspecting exact compiler stderr.
 

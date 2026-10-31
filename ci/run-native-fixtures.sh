@@ -23,7 +23,8 @@ command -v timeout >/dev/null || die "GNU timeout missing"
 command -v sha256sum >/dev/null || die "sha256sum missing"
 command -v realpath >/dev/null || die "realpath missing"
 
-root="$(git rev-parse --show-toplevel)"
+root="$(realpath "$(git rev-parse --show-toplevel)")"
+compiler_root="$(realpath "$compiler_root")"
 cd "$root"
 [[ "$(git rev-parse HEAD)" = "$expected_orie" ]] || die "ORIE head does not match requested SHA"
 [[ "$(git -C "$compiler_root" rev-parse HEAD)" = "$expected_llvm" ]] ||
@@ -33,12 +34,18 @@ cd "$root"
 [[ -z "$(git -C "$compiler_root" status --porcelain --untracked-files=no)" ]] ||
   die "LLVM source worktree contains uncommitted tracked changes"
 output_dir="$(realpath -m "$output_dir")"
-case "$output_dir/" in "$root/"*) die "output must be outside ORIE repository";; esac
+case "$output_dir/" in
+  "$root/"*) die "output must be outside ORIE repository";;
+  "$compiler_root/"*) die "output must be outside LLVM source repository";;
+esac
 bash ci/validate-guest-inventory.sh >/dev/null ||
   die "source inventory rejected; no compilation attempted"
 
-[[ ! -e "$output_dir" ]] || die "refuse to overwrite existing native receipts"
-mkdir -p "$output_dir"
+[[ -d "$(dirname "$output_dir")" ]] ||
+  die "receipt directory parent must already exist"
+# Atomic exclusive creation: no check-then-mkdir race and no overwrite.
+mkdir -- "$output_dir" ||
+  die "receipt directory already exists or could not be created"
 compiler_digest="$(sha256sum "$compiler" | cut -d' ' -f1)"
 {
   printf 'evidence_class=NATIVE_ATTEMPT_NOT_NUMERICAL_CERTIFICATE\n'
@@ -73,8 +80,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   stdout="$output_dir/$id.stdout"
   stderr="$output_dir/$id.stderr"
   total=$((total + 1))
-  printf 'compiler_command=(cd %q && %q %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
-  printf 'native_link_command=clang -x ir %q -o %q\n' "$ir" "$native" >> "$output_dir/$id.commands"
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=timeout --signal=TERM --kill-after=2s 30s clang -x ir %q -o %q\n' "$ir" "$native" >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
   result="COMPILER_REJECTED_UNCLASSIFIED"
   ir_digest="NONE"
   bin_digest="NONE"
@@ -90,6 +98,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
       timeout --signal=TERM --kill-after=2s 30s clang -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
         link_rc=$?
       printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
       if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
             ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
         bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
@@ -98,6 +109,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         timeout --signal=TERM --kill-after=2s 10s "$native" > "$stdout" 2> "$stderr" ||
           guest_rc=$?
         printf '%s\n' "$guest_rc" > "$output_dir/$id.guest.exitcode"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        fi
         printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
         if [[ "$guest_rc" -eq 0 && ! -s "$stderr" ]] &&
            cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
@@ -108,6 +122,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     else
       result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
     fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
   fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
     "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
