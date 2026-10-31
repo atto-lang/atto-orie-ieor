@@ -92,10 +92,17 @@ define module linear_solve as
       let f64 actual = 0.0;
       let f64 scale = 1.0;
       for (let col = 0; col < n; col++) {
-        actual = actual + a.get(row * n + col) * x.get(col);
-        scale = scale + abs_float(a.get(row * n + col) * x.get(col));
+        val f64 term = a.get(row * n + col) * x.get(col);
+        if !bounded(term); then
+          return Err("linear_solve: residual term overflow");
+        fi
+        actual = actual + term;
+        scale = scale + abs_float(term);
+        if !bounded(actual) || !bounded(scale); then
+          return Err("linear_solve: residual accumulator overflow");
+        fi
       }
-      if !bounded(actual) || abs_float(actual - b.get(row)) >
+      if abs_float(actual - b.get(row)) >
          0.000001 * (scale + abs_float(b.get(row))); then
         return Err("linear_solve: unacceptable residual");
       fi
