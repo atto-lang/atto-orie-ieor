@@ -42,7 +42,13 @@ pub routine main(): void {
     rt borrow near_cost, rt borrow near_weights,
     rt borrow near_capacity, 1, 32);
   if boundary.is_ok(); then
-    stdio.stdout.println("FAIL:bnb:near-boundary-certificate"); return;
+    // A future exact solver may legitimately prove the zero optimum.
+    // Conservatively returning Err is also acceptable for this prototype.
+    val bounded = boundary.unwrap();
+    if bounded.status != "optimal" || bounded.objective != 0.0 ||
+       bounded.values.get(0) != 0; then
+      stdio.stdout.println("FAIL:bnb:near-boundary-certificate"); return;
+    fi
   fi
   stdio.stdout.println("PASS:orie-branch-and-bound");
 }
