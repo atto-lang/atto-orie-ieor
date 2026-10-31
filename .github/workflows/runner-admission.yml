@@ -1,8 +1,7 @@
 name: ORIE source-free runner admission
 on:
   push:
-    paths:
-      - .github/workflows/runner-admission.yml
+  pull_request:
   workflow_dispatch:
 permissions: {}
 jobs:
@@ -15,3 +14,4 @@ jobs:
         run: |
           set -euo pipefail
           echo 'ORIE_RUNNER_ADMITTED_SOURCE_FREE'
+          echo "ORIE_ADMISSION_HEAD=${{ github.event.pull_request.head.sha || github.sha }}"
