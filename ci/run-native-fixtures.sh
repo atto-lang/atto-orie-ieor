@@ -61,6 +61,52 @@ compiler_digest="$(sha256sum "$compiler" | cut -d' ' -f1)"
   printf 'runner_job=%s\n' "${GITHUB_JOB:-NOT_CI}"
   printf 'warning=Runner steps and build provenance require independent verification.\n'
 } > "$output_dir/provenance.txt"
+# A scalar-only probe separates compiler/toolchain admission from the
+# 13 application fixtures (which require f64, Array, class, Result, imports).
+smoke_source="ci/scalar-llvm-smoke.ores"
+[[ -f "$smoke_source" && ! -L "$smoke_source" ]] ||
+  die "missing/linked native scalar smoke fixture"
+printf 'scalar_smoke_source_sha256=%s\n' \
+  "$(sha256sum "$smoke_source" | cut -d' ' -f1)" >> "$output_dir/provenance.txt"
+smoke_rc=0
+timeout --signal=TERM --kill-after=2s 60s "$compiler" "$smoke_source" \
+  > "$output_dir/scalar-smoke.ll" 2> "$output_dir/scalar-smoke.compiler.stderr" ||
+  smoke_rc=$?
+printf '%s\n' "$smoke_rc" > "$output_dir/scalar-smoke.compiler.exitcode"
+[[ "$smoke_rc" -eq 0 && -s "$output_dir/scalar-smoke.ll" &&
+   ! -s "$output_dir/scalar-smoke.compiler.stderr" ]] ||
+  die "scalar source -> IR compiler admission failed; 13 ORIE guests not attempted"
+
+smoke_link_rc=0
+timeout --signal=TERM --kill-after=2s 30s clang -x ir "$output_dir/scalar-smoke.ll" \
+  -o "$output_dir/scalar-smoke.native" \
+  > "$output_dir/scalar-smoke.link.stdout" 2> "$output_dir/scalar-smoke.link.stderr" ||
+  smoke_link_rc=$?
+printf '%s\n' "$smoke_link_rc" > "$output_dir/scalar-smoke.link.exitcode"
+[[ "$smoke_link_rc" -eq 0 && -x "$output_dir/scalar-smoke.native" &&
+   ! -s "$output_dir/scalar-smoke.link.stdout" &&
+   ! -s "$output_dir/scalar-smoke.link.stderr" ]] ||
+  die "scalar IR -> native link failed; 13 ORIE guests not attempted"
+
+smoke_guest_rc=0
+timeout --signal=TERM --kill-after=2s 10s "$output_dir/scalar-smoke.native" \
+  > "$output_dir/scalar-smoke.stdout" 2> "$output_dir/scalar-smoke.stderr" ||
+  smoke_guest_rc=$?
+printf '%s\n' "$smoke_guest_rc" > "$output_dir/scalar-smoke.guest.exitcode"
+[[ "$smoke_guest_rc" -eq 42 &&
+   ! -s "$output_dir/scalar-smoke.stdout" &&
+   ! -s "$output_dir/scalar-smoke.stderr" ]] ||
+  die "scalar native guest must exit 42 with empty stdout/stderr"
+
+{
+  printf 'scalar_smoke_ir_sha256=%s\n' \
+    "$(sha256sum "$output_dir/scalar-smoke.ll" | cut -d' ' -f1)"
+  printf 'scalar_smoke_executable_sha256=%s\n' \
+    "$(sha256sum "$output_dir/scalar-smoke.native" | cut -d' ' -f1)"
+  printf 'scalar_smoke_result=SCALAR_COMPILER_NATIVE_PASS_NOT_ORIE_GUEST\n'
+} >> "$output_dir/provenance.txt"
+printf '%s\n' 'SCALAR_COMPILER_NATIVE_PASS (not an ORIE algorithm test)'
+
 printf 'fixture\texpected_stdout\tresult\tguest_sha256\tllvm_ir_sha256\tnative_binary_sha256\n' > "$output_dir/results.tsv"
 
 ok=0
