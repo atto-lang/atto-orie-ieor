@@ -51,6 +51,9 @@ case "$output_dir/" in
   "$root/"*) die "output must be outside ORIE repository";;
   "$compiler_root/"*) die "output must be outside LLVM source repository";;
 esac
+compiler_digest="$(sha256sum "$compiler" | cut -d' ' -f1)"
+[[ "$compiler_digest" = "$expected_compiler_digest" ]] ||
+  die "compiler binary digest differs from the independently pinned expected SHA-256"
 bash ci/validate-guest-inventory.sh >/dev/null ||
   die "source inventory rejected; no compilation attempted"
 
@@ -59,9 +62,6 @@ bash ci/validate-guest-inventory.sh >/dev/null ||
 # Atomic exclusive creation: no check-then-mkdir race and no overwrite.
 mkdir -- "$output_dir" ||
   die "receipt directory already exists or could not be created"
-compiler_digest="$(sha256sum "$compiler" | cut -d' ' -f1)"
-[[ "$compiler_digest" = "$expected_compiler_digest" ]] ||
-  die "compiler binary digest differs from the independently pinned expected SHA-256"
 {
   printf 'evidence_class=NATIVE_ATTEMPT_NOT_NUMERICAL_CERTIFICATE\n'
   printf 'orie_commit=%s\n' "$expected_orie"
