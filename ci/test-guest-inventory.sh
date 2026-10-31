@@ -85,6 +85,11 @@ reject symlinked_guest
 setup; sed -i 's/stdio.stdout.println/stdio.stdout.print/' \
   "$sandbox/packages/orie-numerics/tests/linear_solve_contract.ores"
 reject absent_stdout_marker
+setup
+first_path="$(head -n 1 "$sandbox/ci/guest-fixtures.tsv" | cut -f1)"
+first_marker="$(head -n 1 "$sandbox/ci/guest-fixtures.tsv" | cut -f2)"
+printf '  stdio.stdout.println("%s");\n' "$first_marker" >> "$sandbox/$first_path"
+reject duplicate_guest_stdout_marker
 setup; printf '%s\n' 'unexpected' > "$sandbox/packages/orie-opt/tests/unlisted.ores"
 reject unlisted_guest
 setup
@@ -106,5 +111,5 @@ setup; printf '%s\n' 'schema_version = "1"' \
 reject extra_manifest
 setup; accept restored_baseline
 
-[[ "$checks" -eq 15 ]] || { echo 'INVENTORY_TEST_FAIL incorrect check count' >&2; exit 1; }
+[[ "$checks" -eq 16 ]] || { echo 'INVENTORY_TEST_FAIL incorrect check count' >&2; exit 1; }
 printf 'ORIE_SYNTHETIC_LAYOUT_TESTS_PASS=%d (source-free; no native guests)\n' "$checks"
