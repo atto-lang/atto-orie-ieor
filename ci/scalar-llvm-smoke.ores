@@ -1,0 +1,4 @@
+// Compiler-admission-only smoke. NOT an ORIE numerical or guest fixture.
+// Native LLVM's documented scalar int entrypoint must exit with code 42.
+// The 13 ORIE package fixtures remain separate and unexecuted until proven.
+pub fnc main(): int { return 42; }
