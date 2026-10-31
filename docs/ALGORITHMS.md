@@ -26,9 +26,12 @@ A numerical failure does not return an optimal-looking assignment.
 Binary bounds are passed to the LP relaxation. Fixed 1s are subtracted
 from RHS, and fixed-variable objective contribution is added back.
 The zero assignment establishes a known feasible incumbent.
-Every complete integral LP relaxation is rechecked against the original
+Every complete binary assignment is rechecked against the original
 constraints. Fractional LP solutions branch deterministically on the
-smallest index, zero child before one child. `node_limit` is deliberately
+smallest index; if a relaxed solution appears integral, the solver still
+branches on the smallest unfixed variable. The zero child precedes the one
+child. Floating-point LP integrality and bounds do not terminate a subtree
+or certify global optimality; bounded exhaustive search is required. `node_limit` is deliberately
 **not** `optimal`; its incumbent is feasible but its gap is not certified.
 The implementation is sequential/actor-local, not actor-parallel yet.
 
@@ -96,8 +99,9 @@ status codes constitutes an independently checked primal/dual certificate.
 
 ## 2026-10-30 audit: bounds and immutable snapshots
 
-The bounded binary search inspects every needed fractional subtree rather
-than using a floating-point LP upper bound to prune nodes. Relaxation
+The bounded binary search explores remaining assignments even when a
+floating-point LP relaxation appears integral, and it never uses a
+floating-point LP upper bound to prune nodes. Relaxation
 bounds are validated for finite magnitude but are **not dual certificates**;
 pruning on their rounded values could otherwise exclude a better integer
 assignment while still returning `optimal`. This correction trades speed

@@ -50,5 +50,34 @@ pub routine main(): void {
       stdio.stdout.println("FAIL:bnb:near-boundary-certificate"); return;
     fi
   fi
+  // An integral-looking LP root is still not a numerical certificate:
+  // node_limit=1 must NOT return "optimal" while variables are unfixed.
+  let mut Array<f64> integral_cost = new Array<f64>();
+  integral_cost.add(2.0); integral_cost.add(1.0);
+  let mut Array<f64> integral_a = new Array<f64>();
+  integral_a.add(1.0); integral_a.add(1.0);
+  let mut Array<f64> integral_b = new Array<f64>();
+  integral_b.add(1.0);
+  val root_only = branch_and_bound.solve_binary(
+    rt borrow integral_cost, rt borrow integral_a,
+    rt borrow integral_b, 1, 1);
+  if root_only.is_err(); then
+    stdio.stdout.println("FAIL:bnb:integral-root-admission"); return;
+  fi
+  if root_only.unwrap().status != "node_limit"; then
+    stdio.stdout.println("FAIL:bnb:integral-root-false-optimal"); return;
+  fi
+  val exhaustive = branch_and_bound.solve_binary(
+    rt borrow integral_cost, rt borrow integral_a,
+    rt borrow integral_b, 1, 32);
+  if exhaustive.is_err(); then
+    stdio.stdout.println("FAIL:bnb:integral-root-solve"); return;
+  fi
+  val all_nodes = exhaustive.unwrap();
+  if all_nodes.status != "optimal" || all_nodes.objective != 2.0 ||
+     all_nodes.values.get(0) != 1 || all_nodes.values.get(1) != 0 ||
+     all_nodes.explored_nodes < 3; then
+    stdio.stdout.println("FAIL:bnb:integral-root-enumeration"); return;
+  fi
   stdio.stdout.println("PASS:orie-branch-and-bound");
 }

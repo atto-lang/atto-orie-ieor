@@ -177,6 +177,17 @@ define module branch_and_bound as
             fi
           fi
         }
+        // A relaxation that appears integral in f64 is not an exact
+        // integrality or global-optimality certificate. Continue branching
+        // on every remaining free position before reporting "optimal".
+        // Numerical LP bounds are advisory only and never justify pruning.
+        if branch == -1; then
+          for (let j = 0; j < n; j++) {
+            if branch == -1 && node.fixed.get(j) == -1; then
+              branch = j;
+            fi
+          }
+        fi
         if branch == -1; then
           let bool admissible = true;
           for (let row = 0; row < m; row++) {
