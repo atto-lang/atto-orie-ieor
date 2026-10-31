@@ -93,7 +93,13 @@ a false `unbounded` status. Minimum-ratio ties are based on exact equality
 of the compared binary values; an epsilon-sized difference can no longer
 choose a strictly larger ratio merely to prefer a smaller basis index.
 Strictly negative basic values fail closed, even if their magnitude falls
-within the general tolerance. These are conservative prototype behaviors:
+within the general tolerance. Returned primal points now also fail closed
+when the represented value of A*x exceeds b by any positive amount, rather
+than accepting a `+1e-6` slack that could mislabel an infeasible assignment
+as `optimal`. The numerical regression includes the scalar IEEE-f64 case
+`a=0.3, b=0.7`, for which `a*(b/a) > b` after rounding. This test is
+authored source only; actual native LLVM guest execution remains unverified.
+These are conservative prototype behaviors:
 false numerical failures are acceptable in this bounded reference, false
 certificates of optimality or unboundedness are not. None of the algorithm
 status codes constitutes an independently checked primal/dual certificate.

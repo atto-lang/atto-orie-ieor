@@ -28,5 +28,17 @@ pub routine main(): void {
   if near_zero_pivot.unwrap().status != "numerical_failure"; then
     stdio.stdout.println("FAIL:tiny-pivot-false-unbounded"); return;
   fi
+  // IEEE f64: 0.3 * (0.7 / 0.3) > 0.7 by one rounding quantum.
+  // Never certify a represented positive primal residual as "optimal".
+  coeff.set(0, 0.3);
+  rhs.set(0, 0.7);
+  val rounded_primal = simplex.solve_max_leq(rt borrow cost,
+     rt borrow coeff, rt borrow rhs, 1, 10);
+  if rounded_primal.is_err(); then
+    stdio.stdout.println("FAIL:rounding-primal-admission"); return;
+  fi
+  if rounded_primal.unwrap().status != "numerical_failure"; then
+    stdio.stdout.println("FAIL:rounding-primal-false-optimal"); return;
+  fi
   stdio.stdout.println("PASS:orie-simplex-numerical");
 }

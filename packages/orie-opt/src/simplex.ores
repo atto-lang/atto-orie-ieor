@@ -114,8 +114,11 @@ define module simplex as
           for (let j = 0; j < n; j++) {
             lhs = lhs + a.get(row * n + j) * values.get(j);
           }
+          // A represented positive violation is not feasible, even
+          // when smaller than a heuristic tolerance. Fail closed:
+          // rounded primal values cannot justify an "optimal" status.
           if !admitted(lhs, 1000000000000.0) ||
-             lhs > b.get(row) + 0.000001; then
+             lhs > b.get(row); then
             return Ok(non_optimal("numerical_failure", n, iteration));
           fi
         }
