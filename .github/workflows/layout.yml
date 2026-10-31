@@ -24,38 +24,11 @@ jobs:
           # exact reviewed PR head instead of mislabeling a merge as the head.
           test "$(git rev-parse HEAD)" = "$ORIE_EXPECTED_HEAD"
           echo "ORIE_LAYOUT_SOURCE_HEAD=$ORIE_EXPECTED_HEAD"
-          if find packages -type l -print -quit | grep -q .; then
-            echo 'Symlinks inside packages are forbidden' >&2
-            exit 1
-          fi
-          test ! -e .ores.pkg.toml
-          for pkg in orie-numerics orie-opt orie-sim orie-plan; do
-            test -f "packages/$pkg/.ores.pkg.toml"
-            test -f "packages/$pkg/README.md"
-          done
-          # Static oracle inventory only; this does NOT compile or run fixtures.
-          require_fixture() {
-            local file="$1" marker="$2"
-            test -f "$file"
-            grep -Fq -- "Expected: $marker" "$file"
-            grep -Fq -- "stdio.stdout.println(\"$marker\");" "$file"
-          }
-          require_fixture "packages/orie-numerics/tests/matrix_contract.ores" "PASS:orie-numerics"
-          require_fixture "packages/orie-numerics/tests/linear_solve_contract.ores" "PASS:orie-linear-solve"
-          require_fixture "packages/orie-opt/tests/optimization_contract.ores" "PASS:orie-opt"
-          require_fixture "packages/orie-opt/tests/simplex_contract.ores" "PASS:orie-simplex"
-          require_fixture "packages/orie-opt/tests/simplex_status_contract.ores" "PASS:orie-simplex-status"
-          require_fixture "packages/orie-opt/tests/simplex_degenerate_contract.ores" "PASS:orie-simplex-degenerate"
-          require_fixture "packages/orie-opt/tests/simplex_numerical_contract.ores" "PASS:orie-simplex-numerical"
-          require_fixture "packages/orie-opt/tests/branch_and_bound_contract.ores" "PASS:orie-branch-and-bound"
-          require_fixture "packages/orie-opt/tests/branch_and_bound_enumeration.ores" "PASS:orie-bnb-enumeration"
-          require_fixture "packages/orie-sim/tests/simulation_contract.ores" "PASS:orie-sim"
-          require_fixture "packages/orie-sim/tests/queueing_contract.ores" "PASS:orie-queueing"
-          require_fixture "packages/orie-sim/tests/queueing_negative_contract.ores" "PASS:orie-sim-negative"
-          require_fixture "packages/orie-plan/tests/planning_contract.ores" "PASS:orie-plan"
-          test "$(find packages -type f -path '*/tests/*.ores' | wc -l)" -eq 13
-          test "$(find packages -name '.ores.pkg.toml' -type f | wc -l)" -eq 4
-          test "$(find packages -name '*.ores' -type f | wc -l)" -eq 27
+          # Single authoritative fixture ledger: ci/guest-fixtures.tsv.
+          # Source structure only; do not call this a guest/solver test.
+          test -f ci/validate-guest-inventory.sh
+          test ! -L ci/validate-guest-inventory.sh
+          bash ci/validate-guest-inventory.sh
           # Algorithms and tests are pure Oreslang: host implementations forbidden.
           if find . -type f \( -name '*.java' -o -name '*.class' \
              -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
