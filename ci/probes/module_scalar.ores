@@ -1,0 +1,3 @@
+// Positive compiler-admission probe only: cross-file scalar module binding.
+import module module_scalar_helper from "./module_scalar_helper";
+pub fnc main(): int { return module_scalar_helper.answer(); }
