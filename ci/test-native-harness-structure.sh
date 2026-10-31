@@ -16,7 +16,7 @@ valid() {
   [[ "$(count_lines "done < ci/guest-fixtures.tsv" "$f")" = 1 ]] || return 1
   [[ "$(count_lines "NATIVE_GUEST_EXACT_STDOUT_13_OF_13" "$f")" = 1 ]] || return 1
   [[ "$(count_lines 'feature_total=$((feature_total + 1))' "$f")" = 1 ]] || return 1
-  grep -Fq '[[ "$total" -eq 13 && "$ok" -eq 13 && "$feature_total" -eq 6 && "$feature_ok" -eq 6 ]] ||' "$f" || return 1
+  grep -Fxq '[[ "$total" -eq 13 && "$ok" -eq 13 && "$feature_total" -eq 6 && "$feature_ok" -eq 6 ]] ||' "$f" || return 1
 }
 valid "$harness" || { echo "ORIE_STRUCTURE_REJECT canonical" >&2; exit 1; }
 echo "ORIE_STRUCTURE_ACCEPT canonical"
@@ -34,4 +34,8 @@ cp -- "$harness" "$scratch/modified.sh"
 sed -i '/\[\[ "\$total" -eq 13 \&\& "\$ok" -eq 13 \&\& "\$feature_total" -eq 6 \&\& "\$feature_ok" -eq 6 \]\] ||/d' "$scratch/modified.sh"
 if valid "$scratch/modified.sh"; then echo "ORIE_STRUCTURE_FALSE_ACCEPT missing six-probe gate" >&2; exit 1; fi
 echo "ORIE_STRUCTURE_REJECT missing six-probe gate"
-echo "ORIE_SOURCE_HARNESS_STRUCTURE_4_OF_4 (no native execution)"
+cp -- "$harness" "$scratch/modified.sh"
+sed -i 's/^\[\[ "\$total" -eq 13/# [[ "$total" -eq 13/' "$scratch/modified.sh"
+if valid "$scratch/modified.sh"; then echo "ORIE_STRUCTURE_FALSE_ACCEPT commented-out feature gate" >&2; exit 1; fi
+echo "ORIE_STRUCTURE_REJECT commented_out_feature_gate"
+echo "ORIE_SOURCE_HARNESS_STRUCTURE_5_OF_5 (no native execution)"
