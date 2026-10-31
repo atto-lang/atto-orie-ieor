@@ -33,6 +33,11 @@ jobs:
           test -f ci/test-guest-inventory.sh
           test ! -L ci/test-guest-inventory.sh
           bash ci/test-guest-inventory.sh
+          # Fail-closed compiler provenance preflight tests only. Their
+          # synthetic tripwire compiler must never execute a single instruction.
+          test -f ci/test-native-preflight.sh
+          test ! -L ci/test-native-preflight.sh
+          bash ci/test-native-preflight.sh
           # Algorithms and tests are pure Oreslang: host implementations forbidden.
           if find . -type f \( -name '*.java' -o -name '*.class' \
              -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
