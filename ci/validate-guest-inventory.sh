@@ -35,8 +35,11 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   [[ -f "$path" && ! -L "$path" ]] || fail "missing or linked fixture: $path"
   grep -Fq -- "Expected: $marker" "$path" ||
     fail "missing declared oracle in $path"
-  grep -Fq -- "stdio.stdout.println(\"$marker\");" "$path" ||
-    fail "missing guest stdout marker in $path"
+  # Structural oracle declaration must appear exactly once. A duplicate
+  # expected PASS emission would make the exact-one-line guest contract
+  # ambiguous even though no parser or guest has run at this stage.
+  [[ "$(grep -Fc -- "stdio.stdout.println(\"$marker\");" "$path")" -eq 1 ]] ||
+    fail "missing or duplicated guest stdout marker in $path"
   count=$((count + 1))
 done < "$inventory"
 
