@@ -1,0 +1,6 @@
+module_scalar	ci/probes/module_scalar.ores	42	EMPTY
+array_i64	ci/probes/array_i64.ores	42	EMPTY
+f64_scalar	ci/probes/f64_scalar.ores	42	EMPTY
+array_f64	ci/probes/array_f64.ores	42	EMPTY
+result_class	ci/probes/result_class.ores	42	EMPTY
+orie_stdio	ci/probes/orie_stdio.ores	0	PASS:orie-stdio
