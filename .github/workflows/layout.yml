@@ -2,6 +2,7 @@ name: ORIE native-source layout (not compiler tests)
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -39,10 +40,22 @@ jobs:
           test -f packages/orie-sim/tests/queueing_negative_contract.ores
           test "$(find packages -name '.ores.pkg.toml' -type f | wc -l)" -eq 4
           test "$(find packages -name '*.ores' -type f | wc -l)" -eq 27
+          # Algorithms and tests are pure Oreslang: host implementations forbidden.
           if find . -type f \( -name '*.java' -o -name '*.class' \
              -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
-             -o -name '*.ipynb' \) | grep -q .; then
+             -o -name '*.ipynb' -o -name '*.c' -o -name '*.cc' \
+             -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \
+             -o -name '*.rs' -o -name '*.cs' -o -name '*.go' \
+             -o -name '*.js' -o -name '*.ts' -o -name '*.swift' \) | grep -q .; then
             echo 'Forbidden host-language implementation or tooling present' >&2
+            exit 1
+          fi
+          # Strip line comments before checking operators removed by the language.
+          # This is a structural tripwire, NOT a parser or guest execution test.
+          if find packages -type f -name '*.ores' -print0 |
+             xargs -0 -r sed -E 's@//.*$@@' |
+             grep -E '[%^]'; then
+            echo 'Removed Oreslang operator present in guest source' >&2
             exit 1
           fi
           echo 'LAYOUT PASS only; native compiler tests not executed'
