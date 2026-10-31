@@ -389,3 +389,19 @@ from another.
 native algorithm guest receipts.** These are authored probes and a gate,
 not an actual runtime feature implementation; compiler `f64` support
 remains an upstream gap tracked in LLVM issue #453 and issue #428.
+
+## 2026-10-31 native harness receipt integrity repair (SOURCE ONLY)
+
+The six-feature admission patch accidentally duplicated the 13-case guest
+loop eight times inside the expected probe-list command substitution.
+This made the shell harness unreliable and its aggregate success marker
+untrustworthy. The repaired script has exactly one feature loop and one
+guest loop; the final success condition requires both 6/6 genuine native
+feature probes and 13/13 exact-output guests. A dedicated source-only
+structure regression is wired into layout CI to reject loop duplication,
+repeated aggregate markers and missing feature admission.
+
+This repair is authored and structurally checked, **not yet proven by a
+runner**. It is not an LLVM compiler capability, solver or numerical
+execution receipt. Until exact-head Actions actually executes steps, native
+performance and feature support remain NOT EXECUTED.

@@ -57,6 +57,8 @@ jobs:
           done
           test "$(find ci/probes -type f -name '*.ores' | wc -l)" -eq 7
           bash -n ci/run-native-fixtures.sh
+          # Fail closed on duplicate native guest loops or missing feature receipts.
+          bash ci/test-native-harness-structure.sh
           bash -n ci/test-native-link-transport.sh
           # Algorithms and tests are pure Oreslang: host implementations forbidden.
           if find . -type f \( -name '*.java' -o -name '*.class' \
