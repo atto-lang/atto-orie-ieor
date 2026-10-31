@@ -29,6 +29,10 @@ jobs:
           test -f ci/validate-guest-inventory.sh
           test ! -L ci/validate-guest-inventory.sh
           bash ci/validate-guest-inventory.sh
+          # Synthetic source-free negative tests, not native guest execution.
+          test -f ci/test-guest-inventory.sh
+          test ! -L ci/test-guest-inventory.sh
+          bash ci/test-guest-inventory.sh
           # Algorithms and tests are pure Oreslang: host implementations forbidden.
           if find . -type f \( -name '*.java' -o -name '*.class' \
              -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
