@@ -80,7 +80,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   compile_rc=0
   (cd "$pkg_dir" && "$compiler" "$guest") > "$ir" 2> "$compiler_stderr" ||
     compile_rc=$?
-  printf '%s\\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
   if [[ "$compile_rc" -eq 0 ]]; then
     if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
       ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
@@ -88,7 +88,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
       link_rc=0
       clang -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
         link_rc=$?
-      printf '%s\\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
       if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
             ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
         bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
@@ -96,8 +96,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         guest_rc=0
         timeout --signal=TERM --kill-after=2s 10s "$native" > "$stdout" 2> "$stderr" ||
           guest_rc=$?
-        printf '%s\\n' "$guest_rc" > "$output_dir/$id.guest.exitcode"
-        printf '%s\\n' "$marker" > "$output_dir/$id.expected.stdout"
+        printf '%s\n' "$guest_rc" > "$output_dir/$id.guest.exitcode"
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
         if [[ "$guest_rc" -eq 0 && ! -s "$stderr" ]] &&
            cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
           result="NATIVE_GUEST_EXACT_STDOUT"
