@@ -108,3 +108,62 @@ compile and run them.
 These are source changes and test *expectations*, not passed guest tests.
 No native LLVM compiler, guest execution, or formal numerical certificate
 has been obtained by this change.
+
+## 2026-10-31 follow-up: machine-readable fixture inventory and native admission
+
+`ci/guest-fixtures.tsv` pins the **13 expected exact stdout lines** by
+package-relative Oreslang guest path. It is input to future native-receipt
+comparisons, **not** a ledger of completed executions. The layout workflow
+currently also enumerates 13 test paths explicitly; both inventories must
+be reconciled when runner admission is restored. No `PASS:` line in a
+source file demonstrates guest execution.
+
+For each row, check the exact ORIE PR head and Git tree and the compiler
+source SHA/tree/binary SHA-256. Invoke the **real** native Oreslang LLVM
+frontend on its package/import graph, preserve the diagnostic or emitted
+LLVM IR, and (only if admitted) compile/link and execute its native
+executable. Native LLVM's documented CLI starts with
+`oreslang-llvmc <fixture.ores> > fixture.ll` and
+`clang -x ir fixture.ll -o fixture`; a supported stdio/runtime link
+contract must be established for this suite rather than assumed.
+
+The per-row evidence categories are **COMPILER_ADMISSION** (including
+explicit unsupported diagnostics), **LLVM_IR**, **NATIVE_OBJECT/LINK**,
+**GUEST_EXECUTION** (zero exit, stderr empty, stdout equal to the manifest
+line plus exactly one trailing newline), and **NUMERICAL_CERTIFICATE**.
+Do not combine these with the independent **RUNNER_ADMISSION** or
+**SOURCE_LAYOUT** gates. Record run id, attempt, job id, actual nonempty
+steps, checkout head/tree, compiler source/tree/binary hashes, toolchain
+versions, command lines and output hashes.
+
+Current compiler public-source evidence: relative file/module linking
+is implemented for a bounded native subset
+(`oreslang-source.llvm/docs/NATIVE_MODULE_LINKING.md`), so it is
+incorrect to describe *all* relative imports as categorically unsupported.
+Its bounded `Array<int>` support remains nonescaping/lexical
+(`docs/NATIVE_ARRAY_I64_ABI.md`), while
+`docs/NATIVE_ARRAY_RESULT_TYPED_CONTRACT.md` describes a host-only
+closed Result proof, **not generic guest Result lowering**. Native f64
+work is tracked in LLVM issues #428 and #453. None of these adjacent
+capabilities establishes ORIE `Array<f64>` / general `Result` /
+class-payload guest compilation. Blocked fixtures must fail closed.
+
+### Additional source-local safety changes
+
+- Binary packing incumbents now require `lhs <= rhs` without a positive
+  feasibility tolerance: any represented capacity violation is rejected.
+  `branch_and_bound_contract.ores` adds a near-boundary (1.0 item against
+  capacity 0.999999999) false-certificate regression. It expects explicit
+  failure rather than a misleading `optimal` result.
+- Dense Gaussian elimination checks both each residual product and the
+  accumulated residual scale against finite bounds before treating the
+  computed residual as valid.
+
+Neither change is a native guest test result or a formal real-arithmetic
+certificate. Input floating-point precision and numeric conditioning still
+require independent oracles and error-bound analysis.
+
+**Current execution status:** source-org runs, including the source-free
+canary, have reported `steps=[]`. No authorized runner admission,
+native guest execution, numerical certificate, cross-org export approval
+(issue #2), or protected-main receipt (issue #3) has been obtained.
