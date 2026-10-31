@@ -1,0 +1,6 @@
+// Intermediate ownership probe: native Array<int> before Array<f64>.
+pub fnc main(): int {
+  let mut Array<int> values = new Array<int>();
+  values.add(42);
+  return values.get(0);
+}
