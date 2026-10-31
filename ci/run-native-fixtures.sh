@@ -63,6 +63,52 @@ compiler_digest="$(sha256sum "$compiler" | cut -d' ' -f1)"
   die "compiler binary digest differs from the independently pinned expected SHA-256"
 bash ci/validate-guest-inventory.sh >/dev/null ||
   die "source inventory rejected; no compilation attempted"
+# Mirror the pinned native LLVM scripts/compile-aot.sh link contract:
+# --target=host and only the required native C runtime sources. The saved
+# emitted IR file MUST be the file Clang consumes.
+build_native_link_argv() {
+  local ir="$1" native="$2"
+  local -a runtime_sources=()
+  if grep -Eq 'declare .*@ores_string_' "$ir"; then
+    runtime_sources+=("$compiler_root/src/main/cpp/oreslang/runtime/NativeStringRegion.c")
+  fi
+  if grep -Eq 'declare .*@ores_record_' "$ir"; then
+    runtime_sources+=("$compiler_root/src/main/cpp/oreslang/runtime/NativeRecordRegion.c")
+  fi
+  if grep -Eq 'declare .*@oreslang_int_array_' "$ir"; then
+    runtime_sources+=("$compiler_root/src/main/cpp/oreslang/runtime/NativeIntArrayRegion.c")
+  fi
+  link_argv=("$clang_path" -O2 -x ir "$ir")
+  if (( ${#runtime_sources[@]} > 0 )); then
+    local source
+    for source in "${runtime_sources[@]}"; do
+      [[ -f "$source" && ! -L "$source" ]] ||
+        die "missing or linked pinned LLVM native runtime source: $source"
+    done
+    link_argv+=(-x c -std=c11 -I "$compiler_root/src/main/cpp")
+    link_argv+=("${runtime_sources[@]}")
+    link_argv+=(-pthread)
+  fi
+  link_argv+=(-o "$native")
+}
+
+# Guest stdout is a pipe, not a regular file, as the native nonblocking
+# stdout reactor requires. Record guest and capture process exits separately.
+capture_native_guest() {
+  local native="$1" stdout="$2" stderr="$3" exitcode_prefix="$4"
+  local -a status
+  set +e
+  timeout --signal=TERM --kill-after=2s 10s "$native" 2> "$stderr" |
+    cat > "$stdout"
+  status=("${PIPESTATUS[@]}")
+  set -e
+  printf '%s\n' "${status[0]}" > "$exitcode_prefix.guest.exitcode"
+  printf '%s\n' "${status[1]}" > "$exitcode_prefix.capture.exitcode"
+  guest_rc="${status[0]}"
+  capture_rc="${status[1]}"
+}
+
+
 
 [[ -d "$(dirname "$output_dir")" ]] ||
   die "receipt directory parent must already exist"
@@ -92,7 +138,7 @@ smoke_source="ci/scalar-llvm-smoke.ores"
 printf 'scalar_smoke_source_sha256=%s\n' \
   "$(sha256sum "$smoke_source" | cut -d' ' -f1)" >> "$output_dir/provenance.txt"
 smoke_rc=0
-timeout --signal=TERM --kill-after=2s 60s "$compiler" "$smoke_source" \
+timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$smoke_source" \
   > "$output_dir/scalar-smoke.ll" 2> "$output_dir/scalar-smoke.compiler.stderr" ||
   smoke_rc=$?
 printf '%s\n' "$smoke_rc" > "$output_dir/scalar-smoke.compiler.exitcode"
@@ -101,8 +147,10 @@ printf '%s\n' "$smoke_rc" > "$output_dir/scalar-smoke.compiler.exitcode"
   die "scalar source -> IR compiler admission failed; 13 ORIE guests not attempted"
 
 smoke_link_rc=0
-timeout --signal=TERM --kill-after=2s 30s "$clang_path" -x ir "$output_dir/scalar-smoke.ll" \
-  -o "$output_dir/scalar-smoke.native" \
+build_native_link_argv "$output_dir/scalar-smoke.ll" "$output_dir/scalar-smoke.native"
+printf '%q ' "${link_argv[@]}" > "$output_dir/scalar-smoke.link.command"
+printf '\n' >> "$output_dir/scalar-smoke.link.command"
+timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" \
   > "$output_dir/scalar-smoke.link.stdout" 2> "$output_dir/scalar-smoke.link.stderr" ||
   smoke_link_rc=$?
 printf '%s\n' "$smoke_link_rc" > "$output_dir/scalar-smoke.link.exitcode"
@@ -111,12 +159,10 @@ printf '%s\n' "$smoke_link_rc" > "$output_dir/scalar-smoke.link.exitcode"
    ! -s "$output_dir/scalar-smoke.link.stderr" ]] ||
   die "scalar IR -> native link failed; 13 ORIE guests not attempted"
 
-smoke_guest_rc=0
-timeout --signal=TERM --kill-after=2s 10s "$output_dir/scalar-smoke.native" \
-  > "$output_dir/scalar-smoke.stdout" 2> "$output_dir/scalar-smoke.stderr" ||
-  smoke_guest_rc=$?
-printf '%s\n' "$smoke_guest_rc" > "$output_dir/scalar-smoke.guest.exitcode"
-[[ "$smoke_guest_rc" -eq 42 &&
+capture_native_guest "$output_dir/scalar-smoke.native" \
+  "$output_dir/scalar-smoke.stdout" "$output_dir/scalar-smoke.stderr" \
+  "$output_dir/scalar-smoke"
+[[ "$guest_rc" -eq 42 && "$capture_rc" -eq 0 &&
    ! -s "$output_dir/scalar-smoke.stdout" &&
    ! -s "$output_dir/scalar-smoke.stderr" ]] ||
   die "scalar native guest must exit 42 with empty stdout/stderr"
@@ -149,14 +195,14 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   stdout="$output_dir/$id.stdout"
   stderr="$output_dir/$id.stderr"
   total=$((total + 1))
-  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
-  printf 'native_link_command=timeout --signal=TERM --kill-after=2s 30s %q -x ir %q -o %q\n' "$clang_path" "$ir" "$native" >> "$output_dir/$id.commands"
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
   printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
   result="COMPILER_REJECTED_UNCLASSIFIED"
   ir_digest="NONE"
   bin_digest="NONE"
   compile_rc=0
-  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" "$guest") > "$ir" 2> "$compiler_stderr" ||
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
     compile_rc=$?
   printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
   if [[ "$compile_rc" -eq 0 ]]; then
@@ -164,7 +210,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
       ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
       result="NATIVE_LINK_FAILED"
       link_rc=0
-      timeout --signal=TERM --kill-after=2s 30s "$clang_path" -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
         link_rc=$?
       printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
       if [[ "$link_rc" -eq 124 ]]; then
@@ -174,15 +223,15 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
         bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
         result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
-        guest_rc=0
-        timeout --signal=TERM --kill-after=2s 10s "$native" > "$stdout" 2> "$stderr" ||
-          guest_rc=$?
-        printf '%s\n' "$guest_rc" > "$output_dir/$id.guest.exitcode"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
         if [[ "$guest_rc" -eq 124 ]]; then
           result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
         fi
         printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
-        if [[ "$guest_rc" -eq 0 && ! -s "$stderr" ]] &&
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
            cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
           result="NATIVE_GUEST_EXACT_STDOUT"
           ok=$((ok + 1))
