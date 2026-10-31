@@ -46,6 +46,18 @@ jobs:
           test -f ci/test-native-link-transport.sh
           test ! -L ci/test-native-link-transport.sh
           bash ci/test-native-link-transport.sh
+          # Six capability probes plus one dependency source. These are
+          # authored guest sources, not executed native capability proofs.
+          test -f ci/native-feature-probes.tsv
+          test ! -L ci/native-feature-probes.tsv
+          test "$(wc -l < ci/native-feature-probes.tsv)" -eq 6
+          for probe in module_scalar_helper module_scalar f64_scalar array_i64 array_f64 result_class orie_stdio; do
+            test -f "ci/probes/$probe.ores"
+            test ! -L "ci/probes/$probe.ores"
+          done
+          test "$(find ci/probes -type f -name '*.ores' | wc -l)" -eq 7
+          bash -n ci/run-native-fixtures.sh
+          bash -n ci/test-native-link-transport.sh
           # Algorithms and tests are pure Oreslang: host implementations forbidden.
           if find . -type f \( -name '*.java' -o -name '*.class' \
              -o -name '*.jar' -o -name '*.py' -o -name '*.pyi' \
