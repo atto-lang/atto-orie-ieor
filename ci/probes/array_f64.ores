@@ -1,0 +1,7 @@
+// Positive compiler-admission probe only: owned Array<f64> construction/read.
+pub fnc main(): int {
+  let mut Array<f64> values = new Array<f64>();
+  values.add(2.5);
+  if values.get(0) == 2.5; then return 42; fi
+  return 86;
+}
