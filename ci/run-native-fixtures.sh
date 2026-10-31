@@ -108,18 +108,6 @@ while IFS= read -r line || [[ -n "$line" ]]; do
       result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
     fi
   fi
-  printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
-            if [[ ! -s "$stderr" ]] && cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
-              result="NATIVE_GUEST_EXACT_STDOUT"
-              ok=$((ok + 1))
-            fi
-          fi
-        fi
-      fi
-    else
-      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
-    fi
-  fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
     "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
   printf '%s %s\n' "$result" "$fixture"
