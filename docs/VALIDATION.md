@@ -214,3 +214,30 @@ The local host-shell inventory validator was exercised against a synthetic
 path traversal, package symlink, missing guest PASS print, and restored
 acceptance. These tests exercise **only the Bash gate logic**, not a real
 ORIE checkout, the Oreslang compiler, or the ORIE guest runtime.
+
+## 2026-10-31 next-step CI and compiler admission split (UNEXECUTED)
+
+- `ci/test-guest-inventory.sh` creates a **synthetic**, disposable 13-fixture
+  Git workspace and exercises 15 source-layout outcomes: two valid baselines
+  plus duplicate-row, extra-column, missing-tab, path-traversal, CRLF,
+  symlinked-guest, missing-stdout-marker, unlisted-guest, duplicate-marker,
+  linked-ledger, linked-package-root, missing-manifest and extra-manifest
+  rejection. `.github/workflows/layout.yml` now invokes it after the
+  canonical inventory check. These **new CI steps are configured, not
+  executed** while Actions runner admission is failing before steps begin.
+- `ci/scalar-llvm-smoke.ores` is an intentionally separate compiler-only
+  program using the LLVM-documented signed-i64 entrypoint. It should emit
+  native code that terminates with process exit code **42** and no output.
+  It is not part of the 13 numerical/optimization guest fixtures, does not
+  exercise their package imports, and must not count as a solver test.
+- `ci/run-native-fixtures.sh` now requires **actual scalar source -> IR ->
+  native executable -> process exit 42** first. It records scalar source,
+  generated IR, executable hashes, and per-stage exit codes in the private
+  receipt directory. If scalar admission fails, the thirteen application
+  cases are not attempted. If scalar admission succeeds, ORIE's f64/Array/
+  Result/class features remain separately gated; no inference of support.
+
+**Nothing in this section constitutes native execution evidence:** GitHub
+runs currently have zero executed steps and no authorized compiler binary
+is connected to this draft. The scalar probe, synthetic Bash CI tests and
+13 Oreslang guests must each acquire real pinned execution receipts.
