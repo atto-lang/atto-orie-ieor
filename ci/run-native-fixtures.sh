@@ -10,12 +10,13 @@ export LC_ALL=C
 umask 077
 
 die() { printf 'ORIE_NATIVE_GATE_BLOCKED: %s\n' "$*" >&2; exit 1; }
-[[ "$#" -eq 5 ]] || die "usage: bash ci/run-native-fixtures.sh <llvmc-absolute-path> <compiler-git-root> <output-dir-outside-repo> <orie-head-sha> <llvm-head-sha>"
+[[ "$#" -eq 6 ]] || die "usage: bash ci/run-native-fixtures.sh <compiler-inside-llvm-checkout> <compiler-git-root> <output-dir-outside-repo> <orie-head-sha> <llvm-head-sha> <expected-compiler-sha256>"
 compiler="$1"
 compiler_root="$2"
 output_dir="$3"
 expected_orie="$4"
 expected_llvm="$5"
+expected_compiler_digest="$6"
 [[ "$compiler" = /* && -f "$compiler" && -x "$compiler" ]] ||
   die "native compiler must be a prebuilt absolute executable"
 [[ "$compiler_root" = /* && -d "$compiler_root/.git" ]] ||
@@ -23,6 +24,8 @@ expected_llvm="$5"
 [[ "$output_dir" = /* ]] || die "output directory must be an absolute path"
 [[ "$expected_orie" =~ ^[0-9a-f]{40}$ && "$expected_llvm" =~ ^[0-9a-f]{40}$ ]] ||
   die "both compiler and ORIE source SHAs must be full 40-character hashes"
+[[ "$expected_compiler_digest" =~ ^[0-9a-f]{64}$ ]] ||
+  die "expected compiler binary SHA-256 must be exactly 64 lowercase hex characters"
 command -v clang >/dev/null || die "clang missing"
 command -v timeout >/dev/null || die "GNU timeout missing"
 command -v sha256sum >/dev/null || die "sha256sum missing"
@@ -30,6 +33,11 @@ command -v realpath >/dev/null || die "realpath missing"
 
 root="$(realpath "$(git rev-parse --show-toplevel)")"
 compiler_root="$(realpath "$compiler_root")"
+compiler="$(realpath "$compiler")"
+case "$compiler" in
+  "$compiler_root"/*) ;;
+  *) die "compiler executable must physically reside under the pinned LLVM Git checkout";;
+esac
 cd "$root"
 [[ "$(git rev-parse HEAD)" = "$expected_orie" ]] || die "ORIE head does not match requested SHA"
 [[ "$(git -C "$compiler_root" rev-parse HEAD)" = "$expected_llvm" ]] ||
@@ -52,6 +60,8 @@ bash ci/validate-guest-inventory.sh >/dev/null ||
 mkdir -- "$output_dir" ||
   die "receipt directory already exists or could not be created"
 compiler_digest="$(sha256sum "$compiler" | cut -d' ' -f1)"
+[[ "$compiler_digest" = "$expected_compiler_digest" ]] ||
+  die "compiler binary digest differs from the independently pinned expected SHA-256"
 {
   printf 'evidence_class=NATIVE_ATTEMPT_NOT_NUMERICAL_CERTIFICATE\n'
   printf 'orie_commit=%s\n' "$expected_orie"
