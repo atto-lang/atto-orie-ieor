@@ -113,9 +113,10 @@ has been obtained by this change.
 
 `ci/guest-fixtures.tsv` pins the **13 expected exact stdout lines** by
 package-relative Oreslang guest path. It is input to future native-receipt
-comparisons, **not** a ledger of completed executions. The layout workflow
-currently also enumerates 13 test paths explicitly; both inventories must
-be reconciled when runner admission is restored. No `PASS:` line in a
+comparisons, **not** a ledger of completed executions. The layout workflow now calls `ci/validate-guest-inventory.sh` against this
+single canonical TSV, rejecting duplicate/malformed rows, path traversal,
+symlinks, extra or missing fixture files, and mismatched declared markers.
+This is **source-layout verification only**, not compiled or executed tests. No `PASS:` line in a
 source file demonstrates guest execution.
 
 For each row, check the exact ORIE PR head and Git tree and the compiler
@@ -168,3 +169,43 @@ require independent oracles and error-bound analysis.
 canary, have reported `steps=[]`. No authorized runner admission,
 native guest execution, numerical certificate, cross-org export approval
 (issue #2), or protected-main receipt (issue #3) has been obtained.
+
+## Fail-closed native guest gate (prepared, NOT executed)
+
+On a trusted runner **inside an independently approved security boundary**,
+prepare an exact clean ORIE Git checkout and an exact clean native LLVM
+compiler Git checkout, build the genuine native compiler there, and invoke:
+
+```sh
+bash ci/run-native-fixtures.sh /absolute/path/to/oreslang-llvmc \
+  /absolute/path/to/oreslang-source.llvm \
+  /absolute/path/to/fresh-receipts-dir-outside-ORIE \
+  <full-40-character-ORIE-commit-SHA> \
+  <full-40-character-LLVM-commit-SHA>
+```
+
+The gate validates the canonical TSV, exact Git heads/trees and clean tracked
+source, records the compiler binary hash/toolchain and per-fixture source hash,
+runs real Oreslang source -> emitted LLVM IR -> Clang-linked native executable
+-> timed native guest execution, and compares **byte-exact** stdout (one trailing
+newline), empty stderr, and exit status zero. It preserves per-fixture source,
+IR, native binary hashes, compiler/link/guest exit codes and diagnostics.
+A compiler rejection is recorded as `COMPILER_REJECTED_UNCLASSIFIED`, not
+automatically called a negative test PASS; a link failure or guest mismatch
+likewise blocks the aggregate 13/13 gate. No mock or host-implemented solver
+fallback is permitted. An unsupported feature must be independently
+classified after inspecting exact compiler stderr.
+
+The harness is **not wired as a green required status** because source-org
+GitHub Actions admission remains at `steps=[]`, and compiler support and
+the stdio/runtime link contract are not yet verified. A successful harness
+invocation by itself does not establish the runner-admission metadata,
+compiler-binary build provenance, independent numerical certificates,
+reviewer approval, or branch protection. No private LLVM source checkout
+or cross-organization mirror is authorized by this script.
+
+The local host-shell inventory validator was exercised against a synthetic
+13-row tree: normal acceptance, duplicate TSV row, extra TSV column,
+path traversal, package symlink, missing guest PASS print, and restored
+acceptance. These tests exercise **only the Bash gate logic**, not a real
+ORIE checkout, the Oreslang compiler, or the ORIE guest runtime.
