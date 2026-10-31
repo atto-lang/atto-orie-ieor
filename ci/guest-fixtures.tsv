@@ -1,0 +1,13 @@
+packages/orie-numerics/tests/linear_solve_contract.ores	PASS:orie-linear-solve
+packages/orie-numerics/tests/matrix_contract.ores	PASS:orie-numerics
+packages/orie-opt/tests/branch_and_bound_contract.ores	PASS:orie-branch-and-bound
+packages/orie-opt/tests/branch_and_bound_enumeration.ores	PASS:orie-bnb-enumeration
+packages/orie-opt/tests/optimization_contract.ores	PASS:orie-opt
+packages/orie-opt/tests/simplex_contract.ores	PASS:orie-simplex
+packages/orie-opt/tests/simplex_degenerate_contract.ores	PASS:orie-simplex-degenerate
+packages/orie-opt/tests/simplex_numerical_contract.ores	PASS:orie-simplex-numerical
+packages/orie-opt/tests/simplex_status_contract.ores	PASS:orie-simplex-status
+packages/orie-plan/tests/planning_contract.ores	PASS:orie-plan
+packages/orie-sim/tests/queueing_contract.ores	PASS:orie-queueing
+packages/orie-sim/tests/queueing_negative_contract.ores	PASS:orie-sim-negative
+packages/orie-sim/tests/simulation_contract.ores	PASS:orie-sim
