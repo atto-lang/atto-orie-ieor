@@ -2,13 +2,24 @@
 // This is not async stream consumption or Channel<T> backpressure.
 define module stream_window as
   pub define class State as
-    pub val int capacity;
-    pub val Array<int> samples;
-    pub val int total;
-    pub constructor(int capacity, Array<int> samples, int total) {
+    // Never expose mutable state buffers outside the owning state object.
+    val int capacity;
+    val Array<int> samples;
+    val int total;
+    constructor(int capacity, Array<int> samples, int total) {
       self.capacity = capacity;
       self.samples = samples;
       self.total = total;
+    }
+
+    pub fnc total_value(borrow self): int {
+      return self.total;
+    }
+
+    pub fnc snapshot_samples(borrow self): Array<int> {
+      let mut Array<int> snapshot = new Array<int>();
+      for (const sample of self.samples) { snapshot.add(sample); }
+      return snapshot;
     }
   end
 

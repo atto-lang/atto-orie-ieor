@@ -27,8 +27,21 @@ pub routine main(): void {
   val third = stream_window.push(rt borrow state2, 7);
   if third.is_err(); then stdio.stdout.println("FAIL:stream:third"); return; fi
   val state3 = third.unwrap();
-  if state3.total != 12; then
+  if state3.total_value() != 12; then
     stdio.stdout.println("FAIL:stream:eviction"); return;
+  fi
+  // A returned sample snapshot must not alias the actor-owned window.
+  let mut Array<int> external = state3.snapshot_samples();
+  if external.size != 2 || external.get(0) != 5 ||
+     external.get(1) != 7; then
+    stdio.stdout.println("FAIL:stream:snapshot-values"); return;
+  fi
+  external.set(0, 999);
+  val again = state3.snapshot_samples();
+  if again.get(0) != 5 || again.get(1) != 7 ||
+     state3.total_value() != 12 ||
+     state2.total_value() != 8; then
+    stdio.stdout.println("FAIL:stream:alias-or-history"); return;
   fi
   stdio.stdout.println("PASS:orie-queueing");
 }

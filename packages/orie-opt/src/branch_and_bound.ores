@@ -147,59 +147,60 @@ define module branch_and_bound as
         fi
         // Do not prune positive gaps smaller than a fixed tolerance.
         // Exact mathematical certification still requires a rational oracle.
-        if upper_bound >= best; then
-          let int branch = -1;
-          let mut Array<int> candidate = new Array<int>();
-          let f64 objective = 0.0;
-          for (let j = 0; j < n; j++) {
-            val int fixation = node.fixed.get(j);
-            if fixation == 1; then
-              candidate.add(1);
-              objective = objective + cost.get(j);
+        // Floating-point relaxation bounds are not proof certificates.
+        // Do not prune a binary subtree on a potentially rounded bound;
+        // at n<=8, full bounded search is safer than false optimality.
+        let int branch = -1;
+        let mut Array<int> candidate = new Array<int>();
+        let f64 objective = 0.0;
+        for (let j = 0; j < n; j++) {
+          val int fixation = node.fixed.get(j);
+          if fixation == 1; then
+            candidate.add(1);
+            objective = objective + cost.get(j);
+          else
+            if fixation == 0; then
+              candidate.add(0);
             else
-              if fixation == 0; then
-                candidate.add(0);
-              else
-                val f64 value = solution.values.get(j);
-                if !(value >= 0.0 && value <= 1.0); then
-                  return Err("branch_and_bound: invalid relaxed binary bound");
-                fi
-                // Branch on ANY strictly fractional result. Near-integral
-                // values must not silently become a proof of integrality.
-                if value > 0.0 && value < 1.0 &&
-                   branch == -1; then branch = j; fi
-                if value >= 0.5; then
-                  candidate.add(1);
-                  objective = objective + cost.get(j);
-                else candidate.add(0); fi
+              val f64 value = solution.values.get(j);
+              if !(value >= 0.0 && value <= 1.0); then
+                return Err("branch_and_bound: invalid relaxed binary bound");
               fi
+              // Branch on ANY strictly fractional result. Near-integral
+              // values must not silently become a proof of integrality.
+              if value > 0.0 && value < 1.0 &&
+                 branch == -1; then branch = j; fi
+              if value >= 0.5; then
+                candidate.add(1);
+                objective = objective + cost.get(j);
+              else candidate.add(0); fi
             fi
-          }
-          if branch == -1; then
-            let bool admissible = true;
-            for (let row = 0; row < m; row++) {
-              let f64 lhs = 0.0;
-              for (let j = 0; j < n; j++) {
-                if candidate.get(j) == 1; then
-                  lhs = lhs + a.get(row * n + j);
-                fi
-              }
-              if lhs > b.get(row) + 0.00000001; then
-                admissible = false;
+          fi
+        }
+        if branch == -1; then
+          let bool admissible = true;
+          for (let row = 0; row < m; row++) {
+            let f64 lhs = 0.0;
+            for (let j = 0; j < n; j++) {
+              if candidate.get(j) == 1; then
+                lhs = lhs + a.get(row * n + j);
               fi
             }
-            if !admissible; then
-              // Never discard an ambiguous node and then report optimal.
-              return Err("branch_and_bound: integral candidate failed feasibility");
+            if lhs > b.get(row) + 0.00000001; then
+              admissible = false;
             fi
-            if objective > best; then
-              best = objective;
-              incumbent = candidate;
-            fi
-          else
-            queue.add(new Node(copy_with_fix(rt borrow node.fixed, branch, 0)));
-            queue.add(new Node(copy_with_fix(rt borrow node.fixed, branch, 1)));
+          }
+          if !admissible; then
+            // Never discard an ambiguous node and then report optimal.
+            return Err("branch_and_bound: integral candidate failed feasibility");
           fi
+          if objective > best; then
+            best = objective;
+            incumbent = candidate;
+          fi
+        else
+          queue.add(new Node(copy_with_fix(rt borrow node.fixed, branch, 0)));
+          queue.add(new Node(copy_with_fix(rt borrow node.fixed, branch, 1)));
         fi
       fi
     }

@@ -95,3 +95,16 @@ instead of the private constructor, and checks model ownership after
 mutating its original caller-owned buffers. All thirteen guest cases
 remain **unexecuted** until an authorized native Oreslang toolchain can
 compile and run them.
+
+## 2026-10-30 source-local hardening (no compiler receipt)
+
+- Removed correctness-critical pruning on rounded LP upper bounds in the
+  bounded 0/1 solver; preserve explicit node/pivot resource limits.
+- Repaired the native enumeration guest fixture to avoid the removed
+  `%` operator and forbidden implicit `int`-to-`f64` conversions.
+- Hid the mutable rolling-window backing array and constructor; the guest
+  contract now mutates a copied snapshot and checks historical state.
+
+These are source changes and test *expectations*, not passed guest tests.
+No native LLVM compiler, guest execution, or formal numerical certificate
+has been obtained by this change.

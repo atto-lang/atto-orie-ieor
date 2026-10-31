@@ -13,13 +13,23 @@ pub routine main(): void {
   expected_integer.add(3); expected_integer.add(5);
   expected_integer.add(6); expected_integer.add(8);
   expected_integer.add(9); expected_integer.add(11);
+  // Explicit f64 RHS entries: no implicit int-to-f64 conversion.
+  let mut Array<f64> capacities = new Array<f64>();
+  capacities.add(0.0); capacities.add(1.0);
+  capacities.add(2.0); capacities.add(3.0);
+  capacities.add(4.0); capacities.add(5.0);
+  capacities.add(6.0); capacities.add(7.0);
   for (let capacity = 0; capacity <= 7; capacity++) {
-    rhs.set(0, capacity);
+    rhs.set(0, capacities.get(capacity));
     let int enumerated = 0;
     for (let bits = 0; bits < 8; bits++) {
-      val int x0 = bits % 2;
-      val int x1 = (bits / 2) % 2;
-      val int x2 = (bits / 4) % 2;
+      // Decode three integer bits without the removed % operator.
+      let int remaining = bits;
+      let int x2 = 0;
+      if remaining >= 4; then x2 = 1; remaining = remaining - 4; fi
+      let int x1 = 0;
+      if remaining >= 2; then x1 = 1; remaining = remaining - 2; fi
+      val int x0 = remaining;
       val int weight = 4 * x0 + 3 * x1 + 2 * x2;
       val int objective = 6 * x0 + 5 * x1 + 3 * x2;
       if weight <= capacity && objective > enumerated; then

@@ -93,3 +93,18 @@ within the general tolerance. These are conservative prototype behaviors:
 false numerical failures are acceptable in this bounded reference, false
 certificates of optimality or unboundedness are not. None of the algorithm
 status codes constitutes an independently checked primal/dual certificate.
+
+## 2026-10-30 audit: bounds and immutable snapshots
+
+The bounded binary search inspects every needed fractional subtree rather
+than using a floating-point LP upper bound to prune nodes. Relaxation
+bounds are validated for finite magnitude but are **not dual certificates**;
+pruning on their rounded values could otherwise exclude a better integer
+assignment while still returning `optimal`. This correction trades speed
+for conservative behavior within the eight-variable input limit. It does
+not make the remaining LP numerical admission or integrality checks a
+formal proof. A fully independently certified integer optimum is pending.
+
+The rolling-window `State` now hides its mutable sample buffer and
+constructor. Its public sample accessor returns a fresh copy so callers
+cannot mutate prior published snapshots or future state through an alias.
