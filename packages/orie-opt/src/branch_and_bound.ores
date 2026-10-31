@@ -145,8 +145,8 @@ define module branch_and_bound as
              upper_bound <= 1000000000000.0); then
           return Err("branch_and_bound: invalid LP upper bound");
         fi
-        // Do not prune positive gaps smaller than a fixed tolerance.
-        // Exact mathematical certification still requires a rational oracle.
+        // Relaxation values are heuristic, not certified upper bounds;
+        // never prune bounded binary subtrees using their rounded values.
         // Floating-point relaxation bounds are not proof certificates.
         // Do not prune a binary subtree on a potentially rounded bound;
         // at n<=8, full bounded search is safer than false optimality.
@@ -186,7 +186,9 @@ define module branch_and_bound as
                 lhs = lhs + a.get(row * n + j);
               fi
             }
-            if lhs > b.get(row) + 0.00000001; then
+            // An epsilon slack could falsely publish an infeasible incumbent.
+            // Reject every represented positive capacity violation.
+            if !(lhs <= b.get(row)); then
               admissible = false;
             fi
           }
