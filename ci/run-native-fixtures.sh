@@ -3,6 +3,11 @@
 # Must run inside an authorized security boundary; does not confer export approval.
 set -euo pipefail
 export LC_ALL=C
+# Guest IR, native executables, compiler diagnostics and provenance may
+# contain private source details. Never publish world/group-readable receipts
+# on shared trusted runners: mkdir and every later redirection inherit 0700/
+# 0600 permissions, independently of the runner's default umask.
+umask 077
 
 die() { printf 'ORIE_NATIVE_GATE_BLOCKED: %s\n' "$*" >&2; exit 1; }
 [[ "$#" -eq 5 ]] || die "usage: bash ci/run-native-fixtures.sh <llvmc-absolute-path> <compiler-git-root> <output-dir-outside-repo> <orie-head-sha> <llvm-head-sha>"
