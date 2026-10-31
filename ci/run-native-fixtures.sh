@@ -31,6 +31,13 @@ command -v timeout >/dev/null || die "GNU timeout missing"
 command -v sha256sum >/dev/null || die "sha256sum missing"
 command -v realpath >/dev/null || die "realpath missing"
 
+# Resolve native linker identity once and invoke that physical executable.
+# A later PATH entry cannot silently replace the compiler of LLVM IR.
+clang_path="$(realpath "$(command -v clang)")"
+[[ "$clang_path" = /* && -f "$clang_path" && -x "$clang_path" ]] ||
+  die "resolved clang is not a regular executable"
+clang_digest="$(sha256sum "$clang_path" | cut -d' ' -f1)"
+
 root="$(realpath "$(git rev-parse --show-toplevel)")"
 compiler_root="$(realpath "$compiler_root")"
 compiler="$(realpath "$compiler")"
@@ -69,8 +76,9 @@ mkdir -- "$output_dir" ||
   printf 'llvm_commit=%s\n' "$expected_llvm"
   printf 'llvm_tree=%s\n' "$(git -C "$compiler_root" rev-parse HEAD^{tree})"
   printf 'compiler_binary_sha256=%s\n' "$compiler_digest"
-  printf 'clang_version=%s\n' "$(clang --version | sed -n '1p')"
-  printf 'clang_binary_sha256=%s\n' "$(sha256sum "$(command -v clang)" | cut -d' ' -f1)"
+  printf 'clang_version=%s\n' "$("$clang_path" --version | sed -n '1p')"
+  printf 'clang_path=%s\n' "$clang_path"
+  printf 'clang_binary_sha256=%s\n' "$clang_digest"
   printf 'runner_run_id=%s\n' "${GITHUB_RUN_ID:-NOT_CI}"
   printf 'runner_attempt=%s\n' "${GITHUB_RUN_ATTEMPT:-NOT_CI}"
   printf 'runner_job=%s\n' "${GITHUB_JOB:-NOT_CI}"
@@ -93,7 +101,7 @@ printf '%s\n' "$smoke_rc" > "$output_dir/scalar-smoke.compiler.exitcode"
   die "scalar source -> IR compiler admission failed; 13 ORIE guests not attempted"
 
 smoke_link_rc=0
-timeout --signal=TERM --kill-after=2s 30s clang -x ir "$output_dir/scalar-smoke.ll" \
+timeout --signal=TERM --kill-after=2s 30s "$clang_path" -x ir "$output_dir/scalar-smoke.ll" \
   -o "$output_dir/scalar-smoke.native" \
   > "$output_dir/scalar-smoke.link.stdout" 2> "$output_dir/scalar-smoke.link.stderr" ||
   smoke_link_rc=$?
@@ -142,7 +150,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   stderr="$output_dir/$id.stderr"
   total=$((total + 1))
   printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
-  printf 'native_link_command=timeout --signal=TERM --kill-after=2s 30s clang -x ir %q -o %q\n' "$ir" "$native" >> "$output_dir/$id.commands"
+  printf 'native_link_command=timeout --signal=TERM --kill-after=2s 30s %q -x ir %q -o %q\n' "$clang_path" "$ir" "$native" >> "$output_dir/$id.commands"
   printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
   result="COMPILER_REJECTED_UNCLASSIFIED"
   ir_digest="NONE"
@@ -156,7 +164,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
       ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
       result="NATIVE_LINK_FAILED"
       link_rc=0
-      timeout --signal=TERM --kill-after=2s 30s clang -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+      timeout --signal=TERM --kill-after=2s 30s "$clang_path" -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
         link_rc=$?
       printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
       if [[ "$link_rc" -eq 124 ]]; then
@@ -191,6 +199,11 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   printf '%s %s\n' "$result" "$fixture"
 done < ci/guest-fixtures.tsv
 
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
 printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
 [[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
   die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
