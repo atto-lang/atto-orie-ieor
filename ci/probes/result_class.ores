@@ -1,0 +1,10 @@
+// Positive compiler-admission probe only: Result carrying a native class.
+define class ProbeValue as
+  pub val int number;
+  pub constructor(int number) { self.number = number; }
+end
+pub fnc main(): int {
+  val Result<ProbeValue, String> value = Ok(new ProbeValue(42));
+  if value.is_err(); then return 86; fi
+  return value.unwrap().number;
+}
