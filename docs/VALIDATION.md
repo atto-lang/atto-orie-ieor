@@ -345,3 +345,47 @@ publishing a CI PASS or native guest receipt.
 verified scalar subset. Even an admitted compiler and successful
 native scalar smoke establish only the host-target scalar entrypoint;
 they do not certify any of the 13 application fixtures.
+
+## 2026-10-31 native ORIE feature-admission ladder (source only; NOT executed)
+
+The bounded LLVM scalar compiler currently models `I64`, `Bool` and
+`String` values in its scalar parser/type system; this is not evidence of
+complete `f64` arithmetic, `Array<f64>` ownership, class payloads, or
+`stdio.stdout.println` compatibility. The native harness therefore records
+the **six separately classified native-source capabilities** from the exact
+`ci/native-feature-probes.tsv` contract **after** the original scalar exit-42
+smoke, and **before** attempting all 13 ORIE algorithm guests:
+
+| Probe | Native guest contract | Required evidence |
+| --- | --- | --- |
+| `module_scalar` | cross-file scalar import and call | exit 42, empty output |
+| `array_i64` | owned array of int, add and get | exit 42, empty output |
+| `f64_scalar` | typed float literal and comparison | exit 42, empty output |
+| `array_f64` | owned array of f64, add and get | exit 42, empty output |
+| `result_class` | class-valued Result and field access | exit 42, empty output |
+| `orie_stdio` | exact `stdio.stdout.println` syntax used by ORIE guests | exit 0, `PASS:orie-stdio\\n` |
+
+One dependency source, `ci/probes/module_scalar_helper.ores`, is imported
+by the module probe, not itself a seventh runnable fixture.
+
+Each probe must be compiled with **the pinned actual LLVM compiler**
+(`--target=host`), linked via the exact compiler repo's native C runtime
+mapping, executed with piped guest stdout, and checked for exact exit and
+bytes. The harness preserves compiler/link/guest exits, IR and binary
+hashes, stderr and stdout in `feature-probes.tsv` and per-case artifacts.
+Compiler failure remains `FEATURE_COMPILER_REJECTED_UNCLASSIFIED`
+until real diagnostics classify the missing feature. It is never converted
+to a positive negative test or counted as algorithm execution.
+
+The harness **continues to attempt the 13 ORIE guest fixtures even if
+some capability probes fail**, preserving independent i64/numerical guest
+diagnostics. However, the aggregate 13/13 PASS claim is blocked unless
+all six probes and all thirteen guests execute successfully. This prevents
+a successful-looking ORIE receipt from bypassing a missing compiler
+capability, while also avoiding one unsupported feature hiding evidence
+from another.
+
+**Execution status: zero authentic LLVM compiler probe receipts, zero ORIE
+native algorithm guest receipts.** These are authored probes and a gate,
+not an actual runtime feature implementation; compiler `f64` support
+remains an upstream gap tracked in LLVM issue #453 and issue #428.
