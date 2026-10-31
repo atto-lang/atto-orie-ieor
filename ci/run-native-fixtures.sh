@@ -79,7 +79,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   ir_digest="NONE"
   bin_digest="NONE"
   compile_rc=0
-  (cd "$pkg_dir" && "$compiler" "$guest") > "$ir" 2> "$compiler_stderr" ||
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" "$guest") > "$ir" 2> "$compiler_stderr" ||
     compile_rc=$?
   printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
   if [[ "$compile_rc" -eq 0 ]]; then
@@ -87,7 +87,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
       ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
       result="NATIVE_LINK_FAILED"
       link_rc=0
-      clang -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+      timeout --signal=TERM --kill-after=2s 30s clang -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
         link_rc=$?
       printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
       if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&

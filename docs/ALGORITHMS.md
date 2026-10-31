@@ -74,8 +74,9 @@ The userland LP `create_model` factory checks bounds and shapes before
 allocating the snapshot. Its `Model` constructor and raw arrays are private;
 input buffers are deep-copied instead of retained as mutable caller aliases. The simplex guest regression mutates the
 caller's original arrays after model construction and expects unchanged
-solver behavior. Branch-and-bound branches on every strictly fractional
-relaxation value instead of rounding near-integers into an unsupported proof.
+solver behavior. Branch-and-bound branches on fractional relaxation values but also explores
+remaining free variables after an apparently integral LP result, instead of
+mistaking floating-point integrality for a global optimality certificate.
 If an ostensibly integral candidate fails the original constraints, or if a
 fixed-variable subtraction produces an ambiguous negative RHS, the algorithm
 returns an explicit error; it may never drop that node and later claim

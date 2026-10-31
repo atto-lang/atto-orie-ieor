@@ -187,7 +187,8 @@ bash ci/run-native-fixtures.sh /absolute/path/to/oreslang-llvmc \
 The gate validates the canonical TSV, exact Git heads/trees and clean tracked
 source, records the compiler binary hash/toolchain and per-fixture source hash,
 runs real Oreslang source -> emitted LLVM IR -> Clang-linked native executable
--> timed native guest execution, and compares **byte-exact** stdout (one trailing
+-> native guest execution, with 60-second compiler, 30-second linker and
+10-second guest timeouts, and compares **byte-exact** stdout (one trailing
 newline), empty stderr, and exit status zero. It preserves per-fixture source,
 IR, native binary hashes, compiler/link/guest exit codes and diagnostics.
 A compiler rejection is recorded as `COMPILER_REJECTED_UNCLASSIFIED`, not
