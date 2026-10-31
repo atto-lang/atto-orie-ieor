@@ -176,6 +176,664 @@ capture_native_guest "$output_dir/scalar-smoke.native" \
 } >> "$output_dir/provenance.txt"
 printf '%s\n' 'SCALAR_COMPILER_NATIVE_PASS (not an ORIE algorithm test)'
 
+
+# Feature admission sits between scalar AOT smoke and the thirteen ORIE guests.
+# Every probe is REAL Oreslang -> LLVM IR -> native execution; unsupported
+# source is a reported compiler gap, never a synthetic passing solver test.
+# The canonical fixed matrix prevents a malformed TSV from silently removing
+# a required numeric capability gate.
+[[ -f ci/native-feature-probes.tsv && ! -L ci/native-feature-probes.tsv ]] ||
+  die "missing/linked native feature probe manifest"
+expected_probes="$(printf '%s\n' \
+  
+
+ok=0
+total=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  fixture="${line%%$'\t'*}"
+  marker="${line#*$'\t'}"
+  pkg_dir="$(dirname "$(dirname "$fixture")")"
+  name="$(basename "$fixture" .ores)"
+  id="${pkg_dir##*/}--$name"
+  guest="tests/$name.ores"
+  guest_digest="$(sha256sum "$fixture" | cut -d' ' -f1)"
+  ir="$output_dir/$id.ll"
+  native="$output_dir/$id.native"
+  compiler_stderr="$output_dir/$id.compiler.stderr"
+  link_stderr="$output_dir/$id.link.stderr"
+  stdout="$output_dir/$id.stdout"
+  stderr="$output_dir/$id.stderr"
+  total=$((total + 1))
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
+  result="COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  compile_rc=0
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="NATIVE_LINK_FAILED"
+      link_rc=0
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
+        fi
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
+    "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
+  printf '%s %s\n' "$result" "$fixture"
+done < ci/guest-fixtures.tsv
+
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
+printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
+[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
+  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
+module_scalar\tci/probes/module_scalar.ores\t42\tEMPTY' \
+  
+
+ok=0
+total=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  fixture="${line%%$'\t'*}"
+  marker="${line#*$'\t'}"
+  pkg_dir="$(dirname "$(dirname "$fixture")")"
+  name="$(basename "$fixture" .ores)"
+  id="${pkg_dir##*/}--$name"
+  guest="tests/$name.ores"
+  guest_digest="$(sha256sum "$fixture" | cut -d' ' -f1)"
+  ir="$output_dir/$id.ll"
+  native="$output_dir/$id.native"
+  compiler_stderr="$output_dir/$id.compiler.stderr"
+  link_stderr="$output_dir/$id.link.stderr"
+  stdout="$output_dir/$id.stdout"
+  stderr="$output_dir/$id.stderr"
+  total=$((total + 1))
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
+  result="COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  compile_rc=0
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="NATIVE_LINK_FAILED"
+      link_rc=0
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
+        fi
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
+    "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
+  printf '%s %s\n' "$result" "$fixture"
+done < ci/guest-fixtures.tsv
+
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
+printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
+[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
+  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
+array_i64\tci/probes/array_i64.ores\t42\tEMPTY' \
+  
+
+ok=0
+total=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  fixture="${line%%$'\t'*}"
+  marker="${line#*$'\t'}"
+  pkg_dir="$(dirname "$(dirname "$fixture")")"
+  name="$(basename "$fixture" .ores)"
+  id="${pkg_dir##*/}--$name"
+  guest="tests/$name.ores"
+  guest_digest="$(sha256sum "$fixture" | cut -d' ' -f1)"
+  ir="$output_dir/$id.ll"
+  native="$output_dir/$id.native"
+  compiler_stderr="$output_dir/$id.compiler.stderr"
+  link_stderr="$output_dir/$id.link.stderr"
+  stdout="$output_dir/$id.stdout"
+  stderr="$output_dir/$id.stderr"
+  total=$((total + 1))
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
+  result="COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  compile_rc=0
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="NATIVE_LINK_FAILED"
+      link_rc=0
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
+        fi
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
+    "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
+  printf '%s %s\n' "$result" "$fixture"
+done < ci/guest-fixtures.tsv
+
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
+printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
+[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
+  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
+f64_scalar\tci/probes/f64_scalar.ores\t42\tEMPTY' \
+  
+
+ok=0
+total=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  fixture="${line%%$'\t'*}"
+  marker="${line#*$'\t'}"
+  pkg_dir="$(dirname "$(dirname "$fixture")")"
+  name="$(basename "$fixture" .ores)"
+  id="${pkg_dir##*/}--$name"
+  guest="tests/$name.ores"
+  guest_digest="$(sha256sum "$fixture" | cut -d' ' -f1)"
+  ir="$output_dir/$id.ll"
+  native="$output_dir/$id.native"
+  compiler_stderr="$output_dir/$id.compiler.stderr"
+  link_stderr="$output_dir/$id.link.stderr"
+  stdout="$output_dir/$id.stdout"
+  stderr="$output_dir/$id.stderr"
+  total=$((total + 1))
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
+  result="COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  compile_rc=0
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="NATIVE_LINK_FAILED"
+      link_rc=0
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
+        fi
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
+    "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
+  printf '%s %s\n' "$result" "$fixture"
+done < ci/guest-fixtures.tsv
+
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
+printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
+[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
+  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
+array_f64\tci/probes/array_f64.ores\t42\tEMPTY' \
+  
+
+ok=0
+total=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  fixture="${line%%$'\t'*}"
+  marker="${line#*$'\t'}"
+  pkg_dir="$(dirname "$(dirname "$fixture")")"
+  name="$(basename "$fixture" .ores)"
+  id="${pkg_dir##*/}--$name"
+  guest="tests/$name.ores"
+  guest_digest="$(sha256sum "$fixture" | cut -d' ' -f1)"
+  ir="$output_dir/$id.ll"
+  native="$output_dir/$id.native"
+  compiler_stderr="$output_dir/$id.compiler.stderr"
+  link_stderr="$output_dir/$id.link.stderr"
+  stdout="$output_dir/$id.stdout"
+  stderr="$output_dir/$id.stderr"
+  total=$((total + 1))
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
+  result="COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  compile_rc=0
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="NATIVE_LINK_FAILED"
+      link_rc=0
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
+        fi
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
+    "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
+  printf '%s %s\n' "$result" "$fixture"
+done < ci/guest-fixtures.tsv
+
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
+printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
+[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
+  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
+result_class\tci/probes/result_class.ores\t42\tEMPTY' \
+  
+
+ok=0
+total=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  fixture="${line%%$'\t'*}"
+  marker="${line#*$'\t'}"
+  pkg_dir="$(dirname "$(dirname "$fixture")")"
+  name="$(basename "$fixture" .ores)"
+  id="${pkg_dir##*/}--$name"
+  guest="tests/$name.ores"
+  guest_digest="$(sha256sum "$fixture" | cut -d' ' -f1)"
+  ir="$output_dir/$id.ll"
+  native="$output_dir/$id.native"
+  compiler_stderr="$output_dir/$id.compiler.stderr"
+  link_stderr="$output_dir/$id.link.stderr"
+  stdout="$output_dir/$id.stdout"
+  stderr="$output_dir/$id.stderr"
+  total=$((total + 1))
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
+  result="COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  compile_rc=0
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="NATIVE_LINK_FAILED"
+      link_rc=0
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
+        fi
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
+    "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
+  printf '%s %s\n' "$result" "$fixture"
+done < ci/guest-fixtures.tsv
+
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
+printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
+[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
+  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
+orie_stdio\tci/probes/orie_stdio.ores\t0\tPASS:orie-stdio')"
+cmp -s ci/native-feature-probes.tsv <(printf '%s\n' "$expected_probes") ||
+  die "native feature probe manifest differs from exact six-case contract"
+printf 'feature\tpath\texpected_exit\texpected_stdout\tresult\tsource_sha256\tir_sha256\tbinary_sha256\n' \
+  > "$output_dir/feature-probes.tsv"
+feature_ok=0
+feature_total=0
+while IFS=
+
+ok=0
+total=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  fixture="${line%%$'\t'*}"
+  marker="${line#*$'\t'}"
+  pkg_dir="$(dirname "$(dirname "$fixture")")"
+  name="$(basename "$fixture" .ores)"
+  id="${pkg_dir##*/}--$name"
+  guest="tests/$name.ores"
+  guest_digest="$(sha256sum "$fixture" | cut -d' ' -f1)"
+  ir="$output_dir/$id.ll"
+  native="$output_dir/$id.native"
+  compiler_stderr="$output_dir/$id.compiler.stderr"
+  link_stderr="$output_dir/$id.link.stderr"
+  stdout="$output_dir/$id.stdout"
+  stderr="$output_dir/$id.stderr"
+  total=$((total + 1))
+  printf 'compiler_command=(cd %q && timeout --signal=TERM --kill-after=2s 60s %q --target=host %q)\n' "$pkg_dir" "$compiler" "$guest" > "$output_dir/$id.commands"
+  printf 'native_link_command=link_argv_from_IR_declarations\n' >> "$output_dir/$id.commands"
+  printf 'guest_command=timeout --signal=TERM --kill-after=2s 10s %q\n' "$native" >> "$output_dir/$id.commands"
+  result="COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  compile_rc=0
+  (cd "$pkg_dir" && timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="NATIVE_LINK_FAILED"
+      link_rc=0
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" > "$output_dir/$id.link.command"
+      printf '\n' >> "$output_dir/$id.link.command"
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        capture_native_guest "$native" "$stdout" "$stderr" "$output_dir/$id"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="GUEST_STDOUT_CAPTURE_FAILED"
+        fi
+        printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && "$capture_rc" -eq 0 &&
+              ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  elif [[ "$compile_rc" -eq 124 ]]; then
+    result="COMPILER_TIMEOUT"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$fixture" "$marker" "$result" \
+    "$guest_digest" "$ir_digest" "$bin_digest" >> "$output_dir/results.tsv"
+  printf '%s %s\n' "$result" "$fixture"
+done < ci/guest-fixtures.tsv
+
+# Detect mid-run linker/compiler replacement before publishing 13/13.
+[[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = "$compiler_digest" ]] ||
+  die "native compiler binary changed during guest execution"
+[[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
+  die "native linker binary changed during guest execution"
+printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
+[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
+  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
+\t' read -r name source expected_exit expected_output; do
+  feature_total=$((feature_total + 1))
+  [[ -f "$source" && ! -L "$source" ]] ||
+    die "missing/linked native feature probe source: $source"
+  prefix="$output_dir/feature--$name"
+  ir="$prefix.ll"
+  native="$prefix.native"
+  result="FEATURE_COMPILER_REJECTED_UNCLASSIFIED"
+  ir_digest="NONE"
+  bin_digest="NONE"
+  source_digest="$(sha256sum "$source" | cut -d' ' -f1)"
+  printf 'compiler_command=timeout --signal=TERM --kill-after=2s 60s %q --target=host %q\n' \
+    "$compiler" "$source" > "$prefix.commands"
+  compile_rc=0
+  timeout --signal=TERM --kill-after=2s 60s "$compiler" --target=host "$source" \
+    > "$ir" 2> "$prefix.compiler.stderr" || compile_rc=$?
+  printf '%s\n' "$compile_rc" > "$prefix.compiler.exitcode"
+  if [[ "$compile_rc" -eq 124 ]]; then
+    result="FEATURE_COMPILER_TIMEOUT"
+  elif [[ "$compile_rc" -eq 0 ]]; then
+    if [[ -s "$ir" && ! -s "$prefix.compiler.stderr" ]]; then
+      ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
+      result="FEATURE_NATIVE_LINK_FAILED"
+      build_native_link_argv "$ir" "$native"
+      printf '%q ' "${link_argv[@]}" >> "$prefix.commands"
+      printf '\n' >> "$prefix.commands"
+      link_rc=0
+      timeout --signal=TERM --kill-after=2s 30s "${link_argv[@]}" \
+        > "$prefix.link.stdout" 2> "$prefix.link.stderr" || link_rc=$?
+      printf '%s\n' "$link_rc" > "$prefix.link.exitcode"
+      if [[ "$link_rc" -eq 124 ]]; then
+        result="FEATURE_NATIVE_LINK_TIMEOUT"
+      fi
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$prefix.link.stdout" && ! -s "$prefix.link.stderr" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="FEATURE_GUEST_MISMATCH"
+        capture_native_guest "$native" "$prefix.stdout" "$prefix.stderr" "$prefix"
+        if [[ "$guest_rc" -eq 124 ]]; then
+          result="FEATURE_GUEST_TIMEOUT"
+        elif [[ "$capture_rc" -ne 0 ]]; then
+          result="FEATURE_STDOUT_CAPTURE_FAILED"
+        fi
+        expected_ok=0
+        if [[ "$expected_output" == "EMPTY" ]]; then
+          [[ ! -s "$prefix.stdout" ]] && expected_ok=1
+        else
+          printf '%s\n' "$expected_output" > "$prefix.expected.stdout"
+          cmp -s "$prefix.expected.stdout" "$prefix.stdout" && expected_ok=1
+        fi
+        if [[ "$guest_rc" -eq "$expected_exit" && "$capture_rc" -eq 0 &&
+              ! -s "$prefix.stderr" && "$expected_ok" -eq 1 ]]; then
+          result="FEATURE_NATIVE_GUEST_EXACT"
+          feature_ok=$((feature_ok + 1))
+        fi
+      fi
+    else
+      result="FEATURE_COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$name" "$source" "$expected_exit" "$expected_output" "$result" \
+    "$source_digest" "$ir_digest" "$bin_digest" >> "$output_dir/feature-probes.tsv"
+  printf '%s %s\n' "$result" "$name"
+done < ci/native-feature-probes.tsv
+printf 'NATIVE_FEATURE_PROBES=%d/%d\n' "$feature_ok" "$feature_total"
+[[ "$feature_total" -eq 6 && "$feature_ok" -eq 6 ]] ||
+  die "one or more native feature probes failed admission; ORIE numerical guests NOT attempted"
+printf '%s\n' 'NATIVE_FEATURE_ADMISSION_6_OF_6 (not numerical correctness evidence)'
+
 printf 'fixture\texpected_stdout\tresult\tguest_sha256\tllvm_ir_sha256\tnative_binary_sha256\n' > "$output_dir/results.tsv"
 
 ok=0
