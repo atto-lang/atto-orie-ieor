@@ -1,7 +1,7 @@
 name: ORIE source-free runner admission
 on:
   # PR branches run once through pull_request; main retains push coverage.
-  # A pull_request checkout is still explicitly pinned to its head SHA below.
+  # PR runs report the exact PR head SHA without checking out source.
   push:
     branches: [main]
   pull_request:
