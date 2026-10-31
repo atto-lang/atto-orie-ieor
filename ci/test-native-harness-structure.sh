@@ -15,7 +15,7 @@ valid() {
   [[ "$(count_lines "done < ci/native-feature-probes.tsv" "$f")" = 1 ]] || return 1
   [[ "$(count_lines "done < ci/guest-fixtures.tsv" "$f")" = 1 ]] || return 1
   [[ "$(count_lines "NATIVE_GUEST_EXACT_STDOUT_13_OF_13" "$f")" = 1 ]] || return 1
-  [[ "$(count_lines "feature_total=$((feature_total + 1))" "$f")" = 1 ]] || return 1
+  [[ "$(count_lines 'feature_total=$((feature_total + 1))' "$f")" = 1 ]] || return 1
   grep -Fq '[[ "$total" -eq 13 && "$ok" -eq 13 && "$feature_total" -eq 6 && "$feature_ok" -eq 6 ]] ||' "$f" || return 1
 }
 valid "$harness" || { echo "ORIE_STRUCTURE_REJECT canonical" >&2; exit 1; }
