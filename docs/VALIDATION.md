@@ -303,3 +303,45 @@ additional synthetic negative case for duplicate PASS emissions. This is
 still only textual source integrity: unreachable branches or comments
 could pass static inspection, and only native guest execution can prove
 byte-exact stdout.
+
+## 2026-10-31 source-level native linker/console correction (NOT guest execution)
+
+The native LLVM AOT driver at `oreslang-source.llvm/scripts/compile-aot.sh`
+uses `--target=host` and conditionally includes its own native C runtime
+sources for LLVM IR declarations of `ores_string_*`, `ores_record_*` and
+`oreslang_int_array_*`. The earlier ORIE harness used a direct Clang
+`-x ir` link regardless of such dependencies, so a valid guest IR could
+produce a missing-runtime-symbol link failure. `ci/run-native-fixtures.sh`
+now mirrors this *source-level link contract* while preserving the
+exact emitted IR used to link, and records the complete quoted native
+link command per scalar smoke and application fixture. Missing or
+symlinked required native runtime sources fail closed.
+
+The LLVM string/console documentation also states that its nonblocking
+stdout reactor rejects regular-file stdout at initialization. The
+earlier ORIE guest runner redirected native stdout to a regular file
+and could therefore reject a correct guest. It now gives the **guest**
+a stdout **pipe** and lets `cat` write the captured bytes to an
+owner-only result file. Both the guest and capture process exit codes
+are recorded, including nonzero capture/write failures. The scalar
+smoke still requires guest exit 42 and no output; the 13 numerical
+fixtures still require exit 0, empty stderr and byte-exact stdout.
+
+A new **source-free** `ci/test-native-link-transport.sh` is invoked by
+the layout workflow. Its exact Git blob
+`ce89c678e3f83449895c052f4d6f5c20cd513ea1` was reproduced in
+a local Linux Git workspace and exercised against a manually matched
+extraction of the two current shell functions. **9/9 tests passed**:
+scalar link with no runtime, string/record/int-array runtime selections,
+fail-closed missing/symlinked runtime, actual stdout-pipe capture,
+native-process exit-code preservation, and `/dev/full` write-error
+detection. The local test does **not** invoke Clang, a real Oreslang
+compiler, a solver, or the full GitHub native harness. A step-bearing
+exact-head CI run must execute the actual checked-out scripts before
+publishing a CI PASS or native guest receipt.
+
+**Remaining compiler gate:** the ORIE application guest sources use
+`f64`, arrays, class/Result payloads, and package imports beyond the
+verified scalar subset. Even an admitted compiler and successful
+native scalar smoke establish only the host-target scalar entrypoint;
+they do not certify any of the 13 application fixtures.
