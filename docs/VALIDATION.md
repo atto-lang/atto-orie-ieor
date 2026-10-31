@@ -269,3 +269,30 @@ execution or treat GitHub Actions jobs with `steps=[]` as testing evidence.
 workflow still have zero executed job steps. Only an authorized administrator
 can repair Actions billing, workflow policy, or runner-group eligibility.
 This documentation and script diff do not assert any native guest pass.
+
+## 2026-10-31 locally executed source-free checks (NOT native or GHA)
+
+An isolated local Linux Git workspace reproduced **exact Git blobs**
+`4f7918db9132a33cc76caa59fbeb7330ef41e109` (canonical inventory
+validator), `f755919d02a81cea1dc64252bfe9679236a6a563` (15-case
+synthetic inventory suite), and `37ff547bf85983b6a50fe9a5b0f080cde7017c0a`
+(fixture TSV). Local `git hash-object` matched all three blobs and
+`bash ci/test-guest-inventory.sh` returned the expected **15/15**
+source-free checks. No actual Oreslang guest source was compiled.
+
+`ci/test-native-preflight.sh` (Git blob
+`378337f0c5bc2ea00196640e1d35807928bf99a8`) defines ten further
+synthetic **rejection-only** cases for pinned compiler admission, including
+source/digest mismatches and symlink/out-of-tree executables. The exact
+preflight test-script blob was exercised locally against a reconstruction
+of the applicable shell preflight guards: **10/10 expected rejections**,
+zero invocations of the synthetic tripwire, and zero receipt directories.
+This does not substitute for running those tests against the full native
+harness on an admitted trusted runner. The source-free layout workflow is
+configured to run both suites after GitHub runner admission is repaired.
+
+Representative latest same-organization Actions jobs in ORIE, LLVM and
+Java report `steps=[]`; this is corroborating runner-admission evidence,
+not a diagnosis of the specific administrator-side restriction. No billing
+API/runner eligibility receipt, native scalar executable, ORIE guest
+execution, or numerical certificate is claimed.
