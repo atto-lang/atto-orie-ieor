@@ -30,5 +30,19 @@ pub routine main(): void {
   if partial.unwrap().status != "node_limit"; then
     stdio.stdout.println("FAIL:bnb:misreported-optimality"); return;
   fi
+  // 1.0 is infeasible under capacity 0.999999999: never report
+  // "optimal" after rounding a tiny binary-boundary violation.
+  let mut Array<f64> near_cost = new Array<f64>();
+  let mut Array<f64> near_weights = new Array<f64>();
+  let mut Array<f64> near_capacity = new Array<f64>();
+  near_cost.add(1.0);
+  near_weights.add(1.0);
+  near_capacity.add(0.999999999);
+  val boundary = branch_and_bound.solve_binary(
+    rt borrow near_cost, rt borrow near_weights,
+    rt borrow near_capacity, 1, 32);
+  if boundary.is_ok(); then
+    stdio.stdout.println("FAIL:bnb:near-boundary-certificate"); return;
+  fi
   stdio.stdout.println("PASS:orie-branch-and-bound");
 }
