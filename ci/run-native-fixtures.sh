@@ -263,8 +263,8 @@ done < ci/guest-fixtures.tsv
 [[ "$(sha256sum "$clang_path" | cut -d' ' -f1)" = "$clang_digest" ]] ||
   die "native linker binary changed during guest execution"
 printf 'NATIVE_GUEST_RECEIPT_COUNT=%d/%d\n' "$ok" "$total"
-[[ "$total" -eq 13 && "$ok" -eq 13 ]] ||
-  die "not all 13 native guests executed with exact stdout; see preserved per-case diagnostics"
+[[ "$total" -eq 13 && "$ok" -eq 13 && "$feature_ok" -eq 6 ]] ||
+  die "guest and/or feature admission incomplete; see preserved per-case diagnostics"
 printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical certificates or governance)'
 module_scalar\tci/probes/module_scalar.ores\t42\tEMPTY' \
   
@@ -830,9 +830,15 @@ printf '%s\n' 'NATIVE_GUEST_EXACT_STDOUT_13_OF_13 (does not prove numerical cert
   printf '%s %s\n' "$result" "$name"
 done < ci/native-feature-probes.tsv
 printf 'NATIVE_FEATURE_PROBES=%d/%d\n' "$feature_ok" "$feature_total"
-[[ "$feature_total" -eq 6 && "$feature_ok" -eq 6 ]] ||
-  die "one or more native feature probes failed admission; ORIE numerical guests NOT attempted"
-printf '%s\n' 'NATIVE_FEATURE_ADMISSION_6_OF_6 (not numerical correctness evidence)'
+[[ "$feature_total" -eq 6 ]] || die "missing native feature probe receipt rows"
+if [[ "$feature_ok" -eq 6 ]]; then
+  printf '%s\n' 'NATIVE_FEATURE_ADMISSION_6_OF_6 (not numerical correctness evidence)'
+else
+  # Attempt every ORIE fixture anyway to preserve independent diagnostics
+  # for guest subsets already supported by the real native compiler.
+  # The aggregate 13/13 claim is still barred until probe admission is 6/6.
+  printf '%s\n' 'NATIVE_FEATURE_ADMISSION_INCOMPLETE (collecting separate guest diagnostics)'
+fi
 
 printf 'fixture\texpected_stdout\tresult\tguest_sha256\tllvm_ir_sha256\tnative_binary_sha256\n' > "$output_dir/results.tsv"
 
