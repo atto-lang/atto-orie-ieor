@@ -21,6 +21,7 @@ expected_llvm="$5"
 command -v clang >/dev/null || die "clang missing"
 command -v timeout >/dev/null || die "GNU timeout missing"
 command -v sha256sum >/dev/null || die "sha256sum missing"
+command -v realpath >/dev/null || die "realpath missing"
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
@@ -31,6 +32,7 @@ cd "$root"
   die "ORIE worktree is dirty; cannot claim exact-head execution"
 [[ -z "$(git -C "$compiler_root" status --porcelain --untracked-files=no)" ]] ||
   die "LLVM source worktree contains uncommitted tracked changes"
+output_dir="$(realpath -m "$output_dir")"
 case "$output_dir/" in "$root/"*) die "output must be outside ORIE repository";; esac
 bash ci/validate-guest-inventory.sh >/dev/null ||
   die "source inventory rejected; no compilation attempted"
@@ -75,18 +77,38 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   result="COMPILER_REJECTED_UNCLASSIFIED"
   ir_digest="NONE"
   bin_digest="NONE"
-
-  if (cd "$pkg_dir" && "$compiler" "$guest") > "$ir" 2> "$compiler_stderr"; then
+  compile_rc=0
+  (cd "$pkg_dir" && "$compiler" "$guest") > "$ir" 2> "$compiler_stderr" ||
+    compile_rc=$?
+  printf '%s\\n' "$compile_rc" > "$output_dir/$id.compiler.exitcode"
+  if [[ "$compile_rc" -eq 0 ]]; then
     if [[ -s "$ir" && ! -s "$compiler_stderr" ]]; then
       ir_digest="$(sha256sum "$ir" | cut -d' ' -f1)"
       result="NATIVE_LINK_FAILED"
-      if clang -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr"; then
-        if [[ -f "$native" && -x "$native" && ! -s "$link_stderr" &&
-              ! -s "$output_dir/$id.link.stdout" ]]; then
-          bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
-          result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
-          if timeout --signal=TERM --kill-after=2s 10s "$native" > "$stdout" 2> "$stderr"; then
-            printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
+      link_rc=0
+      clang -x ir "$ir" -o "$native" > "$output_dir/$id.link.stdout" 2> "$link_stderr" ||
+        link_rc=$?
+      printf '%s\\n' "$link_rc" > "$output_dir/$id.link.exitcode"
+      if [[ "$link_rc" -eq 0 && -f "$native" && -x "$native" &&
+            ! -s "$link_stderr" && ! -s "$output_dir/$id.link.stdout" ]]; then
+        bin_digest="$(sha256sum "$native" | cut -d' ' -f1)"
+        result="GUEST_EXIT_OR_OUTPUT_MISMATCH"
+        guest_rc=0
+        timeout --signal=TERM --kill-after=2s 10s "$native" > "$stdout" 2> "$stderr" ||
+          guest_rc=$?
+        printf '%s\\n' "$guest_rc" > "$output_dir/$id.guest.exitcode"
+        printf '%s\\n' "$marker" > "$output_dir/$id.expected.stdout"
+        if [[ "$guest_rc" -eq 0 && ! -s "$stderr" ]] &&
+           cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
+          result="NATIVE_GUEST_EXACT_STDOUT"
+          ok=$((ok + 1))
+        fi
+      fi
+    else
+      result="COMPILER_INVALID_IR_OR_DIAGNOSTIC"
+    fi
+  fi
+  printf '%s\n' "$marker" > "$output_dir/$id.expected.stdout"
             if [[ ! -s "$stderr" ]] && cmp -s "$output_dir/$id.expected.stdout" "$stdout"; then
               result="NATIVE_GUEST_EXACT_STDOUT"
               ok=$((ok + 1))
