@@ -1,0 +1,17 @@
+name: ORIE source-free runner admission
+on:
+  push:
+    paths:
+      - .github/workflows/runner-admission.yml
+  workflow_dispatch:
+permissions: {}
+jobs:
+  source-free-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Prove a runner executed a step
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'ORIE_RUNNER_ADMITTED_SOURCE_FREE'
