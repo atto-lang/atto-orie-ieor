@@ -7,9 +7,18 @@ fnc rejects_negative_capacity(): TestOutcome {
   return expect_true(knapsack_dp.max_value(rt borrow weights, rt borrow values, -1).is_err(),
     "negative knapsack capacity cannot allocate a dynamic-programming table");
 }
+fnc knapsack_item_not_reused(): TestOutcome {
+  val Array<int> weights = arr[2];
+  val Array<int> values = arr[7];
+  val result = knapsack_dp.max_value(rt borrow weights, rt borrow values, 4);
+  if result.is_err(); then return fail("valid knapsack case failed"); fi
+  return expect_equal_int(result.unwrap(), 7,
+    "0/1 knapsack must not select the same item twice");
+}
 pub routine main(): void {
   val TestSuite suite = new TestSuite("orie-opt", arr[
-    new TestCase("rejects_negative_capacity", rejects_negative_capacity, false, "")
+    new TestCase("rejects_negative_capacity", rejects_negative_capacity, false, ""),
+    new TestCase("knapsack_item_not_reused", knapsack_item_not_reused, false, "")
   ]);
   val TestOptions options = new TestOptions("", false, true);
   val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
