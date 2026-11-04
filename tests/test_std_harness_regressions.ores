@@ -1,0 +1,45 @@
+import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "ores.std/testing";
+import fnc expect_true, expect_false, expect_equal_int, expect_equal_string, run_suite, require_success, fail from "ores.std/testing";
+import module knapsack_dp from "../packages/orie-opt/src/knapsack_dp";
+fnc rejects_negative_capacity(): TestOutcome {
+  val weights = arr[1, 2];
+  val values = arr[3, 4];
+  return expect_true(knapsack_dp.max_value(rt borrow weights, rt borrow values, -1).is_err(),
+    "negative knapsack capacity cannot allocate a dynamic-programming table");
+}
+fnc knapsack_item_not_reused(): TestOutcome {
+  val Array<int> weights = arr[2];
+  val Array<int> values = arr[7];
+  val result = knapsack_dp.max_value(rt borrow weights, rt borrow values, 4);
+  if result.is_err(); then return fail("valid knapsack case failed"); fi
+  return expect_equal_int(result.unwrap(), 7,
+    "0/1 knapsack must not select the same item twice");
+}
+fnc knapsack_mismatched_inputs_rejected(): TestOutcome {
+  val Array<int> weights = arr[1, 2];
+  val Array<int> values = arr[7];
+  return expect_true(knapsack_dp.max_value(rt borrow weights, rt borrow values, 4).is_err(),
+    "knapsack must reject unequal weight/value lengths");
+}
+
+fnc knapsack_zero_capacity_has_zero_value(): TestOutcome {
+  val Array<int> weights = arr[1, 2];
+  val Array<int> values = arr[10, 20];
+  val result = knapsack_dp.max_value(rt borrow weights, rt borrow values, 0);
+  if result.is_err(); then return fail("zero-capacity knapsack was rejected"); fi
+  return expect_equal_int(result.unwrap(), 0,
+    "zero capacity cannot admit a positive-weight item");
+}
+
+pub routine main(): void {
+  val TestSuite suite = new TestSuite("orie-opt", arr[
+    new TestCase("rejects_negative_capacity", rejects_negative_capacity, false, ""),
+    new TestCase("knapsack_item_not_reused", knapsack_item_not_reused, false, ""),
+    new TestCase("knapsack_mismatched_inputs_rejected", knapsack_mismatched_inputs_rejected, false, ""),
+    new TestCase("knapsack_zero_capacity_has_zero_value", knapsack_zero_capacity_has_zero_value, false, "")
+  ]);
+  val TestOptions options = new TestOptions("", false, true);
+  val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
+  require_success(rt borrow summary);
+  return;
+}
