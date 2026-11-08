@@ -24,3 +24,14 @@ Each package owns its `.ores.pkg.toml` manifest; **the monorepo root is
 not an Oreslang package root**. Avoid implicit cross-package imports or
 pretending multi-file/package graph linking is already portable. All source
 module functions use snake_case.
+
+## Repository ownership and migration (2026-11-08)
+
+**AttoLang** is the public name of the language; this code remains `ores-truffle-oreslang/oreslang-orie-ieor` (historical Oreslang). Preserve existing `.ores` source compatibility, old package names and CLI identifiers until separately proven changes are merged.
+
+- **Scope:** operations research/industrial engineering examples and numerical model experiments.
+- **Excluded:** normative compiler semantics or production business optimizer claims.
+- **Organizational responsibility:** [atto-lang](https://github.com/atto-lang) owns portable language libraries, research code, compilers, tooling, demos and conformance; [atto-co](https://github.com/atto-co) independently owns cloud hosting, deployments, tenant infrastructure, identity, commercial services and billing. Pre-existing similarly named `atto-*` repositories are distinct Git identities absent transfer receipts.
+- **Proposed first migration:** authorized GitHub transfer of the same original repo ID/name/history into `atto-lang/oreslang-orie-ieor`; no direct old-org → `atto-co` transfers are approved under the current plan. Any later product carve-out requires independent review.
+
+**Per-repo cutover checklist:** coordinate in [issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26) and consult private [migration runbook draft #25](https://github.com/ores-truffle-oreslang/.github/pull/25). Before moving, verify exact commit SHA/tree and stable numeric ID, source/target owner and independent security approval, destination availability/visibility/protections, Actions/runners, secrets, webhooks, Apps, PRs/releases, packages/consumer URLs, Pages and rollback owner. Don't mirror private source without authorization. After an approved GitHub ownership transfer verify ID/history/tree equivalence, restore access and policy, update consumers and rerun exact-head tests with **nonzero executed steps**. `steps=[]`/`null` means `NOT_EXECUTED`; static or host-only tests do not certify real AttoLang guest code or security isolation.
