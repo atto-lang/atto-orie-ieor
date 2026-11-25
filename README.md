@@ -4,7 +4,7 @@
 
 ## AttoLang naming migration and language authority (2026-11-18)
 
-The public language name is **AttoLang** (formerly **Oreslang**). This is a historical `ores-truffle-oreslang/oreslang-orie-ieor` checkout; its current ecosystem routing is **no verified one-to-one atto-lang counterpart**. Preserve historical implementation and build commands in the rest of this README. A similarly named repository is not evidence of identical commits, GitHub issue/PR history or feature status.
+The public language name is **AttoLang** (formerly **Oreslang**). This is the AttoLang repository `atto-lang/atto-orie-ieor`, with historical provenance in `ores-truffle-oreslang/oreslang-orie-ieor`; feature parity and original repository identity preservation are not established. Preserve historical implementation and build commands in the rest of this README. A similarly named repository is not evidence of identical commits, GitHub issue/PR history or feature status.
 
 **[atto-lang/atto-spec](https://github.com/atto-lang/atto-spec) is the canonical normative language specification.** Use [atto-platform-conformance](https://github.com/atto-lang/atto-platform-conformance) for executable positive/negative guest fixtures, [atto-compilers-parity-testing](https://github.com/atto-lang/atto-compilers-parity-testing) for cross-backend comparisons, and [atto-common-source](https://github.com/atto-lang/atto-common-source) for portable `.atto` core/std code. Modern proposed language rules include `snake_case` callable naming, `borrow!`/`take!`/`share!`/`copy!`/`copy!!`, [default nonprimitive argument borrowing](https://github.com/atto-lang/atto-spec/blob/main/language/implicit-argument-borrow-v1.md), [static `define const` including one-time `os.read_env`](https://github.com/atto-lang/atto-spec/blob/main/language/file-module-const-v1.md), and [`<<<`/`>>>`/`ashr` shifts versus `<<`/`>>` stream I/O](https://github.com/atto-lang/atto-spec/blob/main/language/bitwise-and-stream-operators-v1.md). Contract status and compiler execution evidence take precedence over old README descriptions.
 
@@ -34,3 +34,9 @@ Each package owns its `.ores.pkg.toml` manifest; **the monorepo root is
 not an Oreslang package root**. Avoid implicit cross-package imports or
 pretending multi-file/package graph linking is already portable. All source
 module functions use snake_case.
+
+## Legacy migration provenance and gates
+
+The original `ores-truffle-oreslang/oreslang-orie-ieor` repository is archived; this AttoLang repository has a separate numeric GitHub identity. Preserve historical source and reproducible build commands until replacements are independently verified. Operations research, industrial engineering and numerical experiments belong here; normative compiler semantics and unverified production optimizer claims do not.
+
+[atto-lang](https://github.com/atto-lang) owns language libraries, compilers, tooling, tests and examples; [atto-co](https://github.com/atto-co) owns hosted deployment, tenant infrastructure, identity and billing. A future original-ID transfer or product carve-out requires separate source/target owner and independent security approval. Inventory exact SHA/tree, numeric ID, visibility, permissions, protections, PRs, releases, packages, dependencies, runners, secrets, applications, webhooks, Pages and rollback owner; verify preservation and rerun exact-head tests after an actual transfer. Never mirror private source without authorization. Zero-step jobs are NOT_EXECUTED; host-only checks do not establish native guest/compiler execution or security isolation.
